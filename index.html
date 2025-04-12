@@ -72,6 +72,10 @@
     const song = document.getElementById("song").value;
     const name = document.getElementById("name").value;
     const dedication = document.getElementById("dedication").value;
+    const spinner = document.getElementById("spinner");
+
+    // Show spinner
+    spinner.style.display = "block";
 
     try {
       const response = await fetch("https://firestore-request-handler.bradyandcaroline.workers.dev", {
@@ -83,16 +87,18 @@
       });
 
       if (response.ok) {
-        alert("🎵 Your request has been submitted!");
-        document.getElementById("request-form").reset();
+        window.location.href = "thankyou.html";
       } else {
         alert("Something went wrong. Please try again.");
+        spinner.style.display = "none";
       }
     } catch (error) {
       alert("Error: " + error.message);
+      spinner.style.display = "none";
     }
   });
 </script>
+
 
 
 </body>
