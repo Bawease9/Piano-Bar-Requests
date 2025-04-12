@@ -51,6 +51,17 @@
       font-size: 1.3em;
       margin: 0 8px;
     }
+    
+    /* Spinner Styling */
+    #spinner {
+      display: none;
+      margin: 20px 0;
+    }
+    #spinner svg {
+      margin: auto;
+      display: block;
+      background: none;
+    }
   </style>
 </head>
 <body>
@@ -58,6 +69,16 @@
     <img src="logo.png.jpeg" alt="Brady and Caroline Logo" />
     <h1><span class="emoji">🎶</span> Make A Request <span class="emoji">🎶</span></h1>
 
+    <!-- Spinner -->
+    <div id="spinner">
+      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid">
+        <circle cx="50" cy="50" fill="none" stroke="#111" stroke-width="10" r="35" stroke-dasharray="164.93361431346415 56.97787143782138">
+          <animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="1s" values="0 50 50;360 50 50" keyTimes="0;1"/>
+        </circle>
+      </svg>
+    </div>
+
+    <!-- Request Form -->
     <form id="request-form">
       <input type="text" id="song" name="song" placeholder="Song / Artist" required>
       <input type="text" id="name" name="name" placeholder="Your Name">
@@ -65,6 +86,8 @@
       <button type="submit" class="button">Submit Request</button>
     </form>
     
+  </div>
+
 <script>
   document.getElementById("request-form").addEventListener("submit", async function (e) {
     e.preventDefault();
@@ -87,19 +110,18 @@
       });
 
       if (response.ok) {
+        // Redirect to the thank you page on success
         window.location.href = "thankyou.html";
       } else {
         alert("Something went wrong. Please try again.");
-        spinner.style.display = "none";
+        spinner.style.display = "none"; // Hide spinner on failure
       }
     } catch (error) {
       alert("Error: " + error.message);
-      spinner.style.display = "none";
+      spinner.style.display = "none"; // Hide spinner on failure
     }
   });
 </script>
-
-
 
 </body>
 </html>
