@@ -2,86 +2,68 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request a Song</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Brady & Caroline Requests</title>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #fff;
+      color: #111;
+      padding: 20px;
       text-align: center;
-      padding: 2rem;
-      background-color: #fdfdfd;
+      margin: 0;
     }
-
     img {
-      max-width: 200px;
-      display: block;
-      margin: 0 auto 1rem;
+      width: 180px;
+      margin-top: 10px;
+      margin-bottom: 20px;
     }
-
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 2rem;
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 0 20px;
     }
-
-    form {
-      display: inline-block;
-      max-width: 400px;
+    input {
       width: 100%;
-      text-align: left;
-    }
-
-    label {
-      display: block;
-      margin-top: 1rem;
-      font-weight: bold;
-    }
-
-    input, textarea {
-      width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.3rem;
+      box-sizing: border-box;
+      margin: 10px 0;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 8px;
       border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 1rem;
     }
-
-    button {
-      margin-top: 1.5rem;
-      padding: 0.75rem 1.5rem;
-      font-size: 1rem;
+    .button {
+      width: auto;
+      padding: 14px 28px;
+      margin-top: 15px;
+      font-size: 16px;
       border: none;
       border-radius: 8px;
-      background-color: #5c6ac4;
-      color: white;
       cursor: pointer;
+      background: #111;
+      color: white;
     }
-
-    button:hover {
-      background-color: #3f4aa3;
+    h1 {
+      font-size: 2em;
+      margin: 20px 0;
+    }
+    .emoji {
+      font-size: 1.3em;
+      margin: 0 8px;
     }
   </style>
 </head>
 <body>
+  <div class="container">
+    <img src="logo.png" alt="Brady and Caroline Logo" />
+    <h1><span class="emoji">🎶</span> Make A Request <span class="emoji">🎶</span></h1>
 
-  <!-- Logo -->
-  <img src="logo.png.jpeg" alt="Brady and Caroline Logo" />
-
-  <!-- Title -->
-  <h1>Make A Request</h1>
-
-  <!-- Request Form -->
-  <form id="requestForm">
-    <label for="song">🎵 Song / Artist</label>
-    <input type="text" id="song" name="song" required />
-
-    <label for="name">🙋 Your Name</label>
-    <input type="text" id="name" name="name" required />
-
-    <label for="dedication">💌 Dedication (optional)</label>
-    <textarea id="dedication" name="dedication" rows="3"></textarea>
-
-    <button type="submit">Submit Request</button>
-  </form>
+    <form id="request-form">
+      <input type="text" id="song" name="song" placeholder="Song / Artist" required>
+      <input type="text" id="name" name="name" placeholder="Your Name">
+      <input type="text" id="dedication" name="dedication" placeholder="Dedication / Special Occasion">
+      <button type="submit" class="button">Submit Request</button>
+    </form>
 
 </body>
 </html>
