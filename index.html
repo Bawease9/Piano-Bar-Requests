@@ -64,6 +64,51 @@
       <input type="text" id="dedication" name="dedication" placeholder="Dedication / Special Occasion">
       <button type="submit" class="button">Submit Request</button>
     </form>
+    
+<script>
+  const form = document.getElementById('request-form');
+  const status = document.getElementById('status');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const song = document.getElementById('song').value;
+    const name = document.getElementById('name').value;
+    const dedication = document.getElementById('dedication').value;
+
+    const data = {
+      fields: {
+        song: { stringValue: song },
+        name: { stringValue: name },
+        dedication: { stringValue: dedication },
+        timestamp: { timestampValue: new Date().toISOString() }
+      }
+    };
+
+    try {
+      const res = await fetch(
+        'https://firestore.googleapis.com/v1/projects/requests-cd300/databases/(default)/documents/requests?key=AIzaSyDqzylQpuM8Ic9_MTfaZFh7ZVnQZOOUL2k',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        }
+      );
+
+      if (res.ok) {
+        status.textContent = "✅ Request submitted!";
+        form.reset();
+        // Optionally redirect:
+        // window.location.href = "admin.html";
+      } else {
+        status.textContent = "❌ Failed to submit request.";
+      }
+    } catch (err) {
+      console.error(err);
+      status.textContent = "❌ Error submitting request.";
+    }
+  });
+</script>
 
 </body>
 </html>
