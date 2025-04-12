@@ -1,1 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request a Song</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 2rem;
+      background-color: #fdfdfd;
+    }
+
+    img {
+      max-width: 200px;
+      margin-bottom: 1.5rem;
+    }
+
+    form {
+      display: inline-block;
+      max-width: 400px;
+      width: 100%;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.3rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+
+    button {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #5c6ac4;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #3f4aa3;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Logo -->
+  <img src="your-logo-file.png" alt="Brady and Caroline Piano Bar Logo" />
+
+  <!-- Request Form -->
+  <form id="requestForm">
+    <label for="song">🎵 Song / Artist</label>
+    <input type="text" id="song" name="song" required />
+
+    <label for="name">🙋 Your Name</label>
+    <input type="text" id="name" name="name" required />
+
+    <label for="dedication">💌 Dedication (optional)</label>
+    <textarea id="dedication" name="dedication" rows="3"></textarea>
+
+    <button type="submit">Submit Request</button>
+  </form>
+
+</body>
+</html>
 
