@@ -9,8 +9,30 @@
       background-color: #fff;
     }
 
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 30px 8%;
+    }
+
     h2 {
-      margin-top: 30px;
+      margin: 0;
+    }
+
+    #totalRequests {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .reset-btn {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: none;
+      background-color: red;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
     }
 
     table {
@@ -32,7 +54,7 @@
 
     td:first-child {
       font-weight: bold;
-      text-transform: lowercase;
+      font-size: 1.1em;
     }
 
     .section-title {
@@ -53,29 +75,15 @@
 
     .played-btn { background-color: #28a745; }
     .unknown-btn { background-color: #007bff; }
-
-    .reset-btn {
-      float: right;
-      margin-right: 8%;
-      padding: 10px 16px;
-      border-radius: 10px;
-      border: none;
-      background-color: red;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    #totalRequests {
-      font-size: 18px;
-      margin-bottom: 10px;
-    }
+    .undo-btn { background-color: #ff9800; }
   </style>
 </head>
 <body>
-  <h2>🎶 Admin - Song Requests 🎶</h2>
+  <div class="header">
+    <h2>🎶 Admin - Song Requests 🎶</h2>
+    <button class="reset-btn" onclick="resetTables()">Reset All</button>
+  </div>
   <p id="totalRequests">Total Requests: 0</p>
-  <button class="reset-btn" onclick="resetTables()">Reset All</button>
 
   <table id="requestsTable">
     <thead>
@@ -98,6 +106,7 @@
         <th>Your Name</th>
         <th>Dedication</th>
         <th>Timestamp</th>
+        <th>Action</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -111,6 +120,7 @@
         <th>Your Name</th>
         <th>Dedication</th>
         <th>Timestamp</th>
+        <th>Action</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -120,17 +130,22 @@
     const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
     const appendedRows = new Set();
 
-    function createRow(cells, includeActions = true) {
+    function createRow(cells, location = 'main') {
       const tr = document.createElement('tr');
       cells.forEach((text, i) => {
         const td = document.createElement('td');
         td.textContent = text || '—';
-        if (i === 0) td.style.fontWeight = 'bold'; // Bold for song title
+        if (i === 0) {
+          td.style.fontWeight = 'bold';
+          td.style.fontSize = '1.1em';
+        }
         tr.appendChild(td);
       });
 
-      if (includeActions) {
-        const actionCell = document.createElement('td');
+      const actionCell = document.createElement('td');
+      const btn = document.createElement('button');
+
+      if (location === 'main') {
         const playedBtn = document.createElement('button');
         playedBtn.textContent = 'Mark as Played';
         playedBtn.className = 'button played-btn';
@@ -143,22 +158,35 @@
 
         actionCell.appendChild(playedBtn);
         actionCell.appendChild(unknownBtn);
-        tr.appendChild(actionCell);
+      } else {
+        const undoBtn = document.createElement('button');
+        undoBtn.textContent = 'Undo';
+        undoBtn.className = 'button undo-btn';
+        undoBtn.onclick = () => moveRow(tr, 'main');
+        actionCell.appendChild(undoBtn);
       }
 
+      tr.appendChild(actionCell);
       return tr;
     }
 
     function moveRow(row, destination) {
       const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString();
       row.cells[3].textContent = timestamp;
-      row.removeChild(row.cells[4]); // Remove action buttons
+      row.removeChild(row.lastChild); // Remove old action buttons
+
+      const cells = Array.from(row.cells).map(cell => cell.textContent);
+      const newRow = createRow(cells, destination);
 
       if (destination === 'played') {
-        document.querySelector('#playedTable tbody').appendChild(row);
+        document.querySelector('#playedTable tbody').appendChild(newRow);
+      } else if (destination === 'unknown') {
+        document.querySelector('#unknownTable tbody').appendChild(newRow);
       } else {
-        document.querySelector('#unknownTable tbody').appendChild(row);
+        document.querySelector('#requestsTable tbody').appendChild(newRow);
       }
+
+      row.remove();
     }
 
     function resetTables() {
@@ -191,3 +219,4 @@
   </script>
 </body>
 </html>
+
