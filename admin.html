@@ -54,7 +54,7 @@
 
     td:first-child {
       font-weight: bold;
-      font-size: 1.1em;
+      font-size: 1.2em;
     }
 
     .section-title {
@@ -130,20 +130,30 @@
     const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
     const appendedRows = new Set();
 
+    function formatTimestamp(ts) {
+      if (!ts) return '—';
+      if (ts.includes('T')) {
+        const date = new Date(ts);
+        const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+        const dateStr = date.toLocaleDateString();
+        return `${time} ${dateStr}`;
+      }
+      return ts;
+    }
+
     function createRow(cells, location = 'main') {
       const tr = document.createElement('tr');
       cells.forEach((text, i) => {
         const td = document.createElement('td');
-        td.textContent = text || '—';
+        td.textContent = i === 3 ? formatTimestamp(text) : (text || '—');
         if (i === 0) {
           td.style.fontWeight = 'bold';
-          td.style.fontSize = '1.1em';
+          td.style.fontSize = '1.2em';
         }
         tr.appendChild(td);
       });
 
       const actionCell = document.createElement('td');
-      const btn = document.createElement('button');
 
       if (location === 'main') {
         const playedBtn = document.createElement('button');
@@ -171,7 +181,7 @@
     }
 
     function moveRow(row, destination) {
-      const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString();
+      const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) + ' ' + new Date().toLocaleDateString();
       row.cells[3].textContent = timestamp;
       row.removeChild(row.lastChild); // Remove old action buttons
 
