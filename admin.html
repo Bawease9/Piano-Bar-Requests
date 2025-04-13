@@ -171,24 +171,37 @@
       });
     }
 
-    function createRow(req, index) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${req.song}</td>
-        <td>${req.name}</td>
-        <td>${req.dedication}</td>
-        <td>${new Date(req.timestamp).toLocaleString()}</td>
-        <td>
-          ${req.status === "active" ? `
-            <button onclick="markAsPlayed(${index})">Mark as Played</button>
-            <button onclick="markAsUnknown(${index})">Don't Know</button>
-          ` : `
-            <button class="undo-button" onclick="undo(${index})">Undo</button>
-          `}
-        </td>
-      `;
-      return tr;
-    }
+function createRow(req, index) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${req.song}</td>
+    <td>${req.name}</td>
+    <td>${req.dedication}</td>
+    <td>${formatTimestamp(req.timestamp)}</td>
+    <td>
+      ${req.status === "active" ? `
+        <button onclick="markAsPlayed(${index})">Mark as Played</button>
+        <button onclick="markAsUnknown(${index})">Don't Know</button>
+      ` : `
+        <button class="undo-button" onclick="undo(${index})">Undo</button>
+      `}
+    </td>
+  `;
+  return tr;
+}
+
+function formatTimestamp(isoString) {
+  const date = new Date(isoString);
+  return date.toLocaleString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    month: "numeric",
+    day: "numeric",
+    year: "numeric"
+  }).toLowerCase();
+}
+
 
     function markAsPlayed(index) {
       const played = JSON.parse(localStorage.getItem("played") || "[]");
