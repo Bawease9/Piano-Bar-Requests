@@ -7,7 +7,7 @@
       font-family: Arial, sans-serif;
       text-align: center;
       background-color: #111;
-      color: #f1f1f1;
+      color: #fff;
     }
 
     .header {
@@ -19,7 +19,6 @@
 
     h2 {
       margin: 0;
-      font-size: 2em;
     }
 
     #totalRequests {
@@ -31,7 +30,7 @@
       padding: 10px 16px;
       border-radius: 10px;
       border: none;
-      background-color: #e74c3c;
+      background-color: red;
       color: white;
       font-weight: bold;
       cursor: pointer;
@@ -40,18 +39,19 @@
     table {
       margin: 0 auto;
       border-collapse: collapse;
-      width: 90%;
+      width: 85%;
       margin-bottom: 40px;
+      background-color: #222;
     }
 
     th, td {
-      border: 1px solid #333;
+      border: 1px solid #444;
       padding: 12px 15px;
     }
 
     th {
-      background-color: #333;
-      color: #f1f1f1;
+      background-color: #000;
+      color: white;
     }
 
     td:first-child {
@@ -63,7 +63,6 @@
       font-size: 1.3em;
       font-weight: bold;
       margin: 30px 0 10px;
-      color: #ccc;
     }
 
     .button {
@@ -78,7 +77,7 @@
 
     .played-btn { background-color: #28a745; }
     .unknown-btn { background-color: #007bff; }
-    .undo-btn { background-color: #f39c12; }
+    .undo-btn { background-color: #ff9800; }
   </style>
 </head>
 <body>
@@ -94,7 +93,7 @@
         <th>Song/Artist</th>
         <th>Your Name</th>
         <th>Dedication</th>
-        <th>Submitted</th>
+        <th>Requested</th>
         <th>Action</th>
       </tr>
     </thead>
@@ -131,40 +130,33 @@
 
   <script>
     const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
-    const appendedRows = new Set();
+    const activeRows = new Map(); // Tracks current request rows
 
-    function timeAgo(date) {
+    function formatTimeAgo(timestamp) {
       const now = new Date();
-      const diff = Math.floor((now - date) / 1000); // in seconds
+      const then = new Date(timestamp);
+      const diffMs = now - then;
+      const diffMin = Math.floor(diffMs / 60000);
+      const diffHr = Math.floor(diffMin / 60);
 
-      if (diff < 60) return `${diff}s ago`;
-      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-      return `${Math.floor(diff / 86400)}d ago`;
+      if (isNaN(diffMin)) return '—';
+
+      if (diffMin < 1) return 'Just now';
+      if (diffMin < 60) return `${diffMin} min ago`;
+      return `${diffHr} hr ago`;
     }
 
-    function createRow(cells, location = 'main') {
+    function createRow([song, name, dedication, timestamp], location = 'main') {
       const tr = document.createElement('tr');
+      const key = `${song}|${name}|${dedication}`;
 
-      const submittedTime = new Date(cells[3]);
-      const submittedText = isNaN(submittedTime.getTime()) ? '—' : timeAgo(submittedTime);
-
-      const visibleCells = [
-        cells[0], // song
-        cells[1], // name
-        cells[2], // dedication
-        submittedText // how long ago
-      ];
-
-      visibleCells.forEach((text, i) => {
+      const cells = [song, name, dedication, timestamp].map((value, i) => {
         const td = document.createElement('td');
-        td.textContent = text || '—';
-        if (i === 0) {
-          td.style.fontWeight = 'bold';
-          td.style.fontSize = '1.2em';
-        }
-        tr.appendChild(td);
+        td.textContent = (i === 3 && location === 'main') ? formatTimeAgo(value) : (value || '—');
+        return td;
       });
+
+      cells.forEach(td => tr.appendChild(td));
 
       const actionCell = document.createElement('td');
 
@@ -172,12 +164,12 @@
         const playedBtn = document.createElement('button');
         playedBtn.textContent = 'Mark as Played';
         playedBtn.className = 'button played-btn';
-        playedBtn.onclick = () => moveRow(tr, 'played');
+        playedBtn.onclick = () => moveRow(key, tr, 'played');
 
         const unknownBtn = document.createElement('button');
         unknownBtn.textContent = "Don't Know";
         unknownBtn.className = 'button unknown-btn';
-        unknownBtn.onclick = () => moveRow(tr, 'unknown');
+        unknownBtn.onclick = () => moveRow(key, tr, 'unknown');
 
         actionCell.appendChild(playedBtn);
         actionCell.appendChild(unknownBtn);
@@ -185,20 +177,23 @@
         const undoBtn = document.createElement('button');
         undoBtn.textContent = 'Undo';
         undoBtn.className = 'button undo-btn';
-        undoBtn.onclick = () => moveRow(tr, 'main');
+        undoBtn.onclick = () => moveRow(key, tr, 'main');
         actionCell.appendChild(undoBtn);
       }
 
       tr.appendChild(actionCell);
-      tr.dataset.timestamp = cells[3]; // keep original timestamp for sorting
       return tr;
     }
 
-    function moveRow(row, destination) {
-      row.removeChild(row.lastChild);
+    function moveRow(key, row, destination) {
+      activeRows.delete(key);
+      row.remove();
+
       const cells = Array.from(row.cells).map(cell => cell.textContent);
       const now = new Date().toISOString();
-      const newRow = createRow([...cells.slice(0, 3), now], destination);
+      cells[3] = now; // update timestamp
+
+      const newRow = createRow(cells, destination);
 
       if (destination === 'played') {
         document.querySelector('#playedTable tbody').appendChild(newRow);
@@ -206,68 +201,63 @@
         document.querySelector('#unknownTable tbody').appendChild(newRow);
       } else {
         document.querySelector('#requestsTable tbody').appendChild(newRow);
+        activeRows.set(key, newRow);
       }
 
-      row.remove();
+      document.getElementById('totalRequests').textContent = `Total Requests: ${activeRows.size}`;
     }
 
     function resetTables() {
       document.querySelector('#requestsTable tbody').innerHTML = '';
       document.querySelector('#playedTable tbody').innerHTML = '';
       document.querySelector('#unknownTable tbody').innerHTML = '';
-      appendedRows.clear();
+      activeRows.clear();
     }
 
-    function fetchAndAppendNewRows() {
+    function fetchAndUpdateRequests() {
       fetch(sheetURL)
         .then(response => response.text())
         .then(csv => {
-          const rows = csv.trim().split('\n').slice(1);
+          const lines = csv.trim().split('\n').slice(1);
           const currentKeys = new Set();
-          const parsedRows = [];
 
-          rows.forEach(line => {
-            const [song, name, dedication, timestamp] = line.split(',');
+          // Sort by most recent timestamp (4th column)
+          const sortedLines = lines
+            .map(line => line.split(','))
+            .sort((a, b) => new Date(b[3]) - new Date(a[3]));
+
+          sortedLines.forEach(([song, name, dedication, timestamp]) => {
             const key = `${song}|${name}|${dedication}`;
             currentKeys.add(key);
-            parsedRows.push({ key, data: [song, name, dedication, timestamp] });
-          });
 
-          parsedRows
-            .sort((a, b) => new Date(b.data[3]) - new Date(a.data[3])) // sort newest first
-            .forEach(({ key, data }) => {
-              if (!appendedRows.has(key)) {
-                appendedRows.add(key);
-                const tr = createRow(data);
-                document.querySelector('#requestsTable tbody').appendChild(tr);
-              }
-            });
-
-          appendedRows.forEach(key => {
-            if (!currentKeys.has(key)) {
-              appendedRows.delete(key);
-              const rows = document.querySelectorAll('#requestsTable tbody tr');
-              rows.forEach(row => {
-                const rowKey = `${row.cells[0].textContent}|${row.cells[1].textContent}|${row.cells[2].textContent}`;
-                if (rowKey === key) {
-                  row.remove();
-                }
-              });
+            if (!activeRows.has(key)) {
+              const newRow = createRow([song, name, dedication, timestamp]);
+              document.querySelector('#requestsTable tbody').appendChild(newRow);
+              activeRows.set(key, newRow);
+            } else {
+              // Update "x min ago" text
+              const row = activeRows.get(key);
+              const cell = row.cells[3];
+              cell.textContent = formatTimeAgo(timestamp);
             }
           });
 
-          // Re-sort visible rows just in case
-          const tbody = document.querySelector('#requestsTable tbody');
-          const rowsArray = Array.from(tbody.querySelectorAll('tr'));
-          rowsArray.sort((a, b) => new Date(b.dataset.timestamp) - new Date(a.dataset.timestamp));
-          rowsArray.forEach(row => tbody.appendChild(row));
+          // Remove rows no longer in the Sheet
+          for (const key of activeRows.keys()) {
+            if (!currentKeys.has(key)) {
+              const row = activeRows.get(key);
+              if (row && row.parentNode) row.remove();
+              activeRows.delete(key);
+            }
+          }
 
-          document.getElementById('totalRequests').textContent = `Total Requests: ${appendedRows.size}`;
+          document.getElementById('totalRequests').textContent = `Total Requests: ${activeRows.size}`;
         });
     }
 
-    fetchAndAppendNewRows();
-    setInterval(fetchAndAppendNewRows, 10000);
+    fetchAndUpdateRequests();
+    setInterval(fetchAndUpdateRequests, 10000); // every 10s
   </script>
 </body>
 </html>
+
