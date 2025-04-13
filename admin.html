@@ -6,38 +6,57 @@
     body {
       font-family: Arial, sans-serif;
       text-align: center;
+      background-color: #fff;
     }
+
+    h2 {
+      margin-top: 30px;
+    }
+
     table {
       margin: 0 auto;
       border-collapse: collapse;
-      width: 90%;
+      width: 85%;
+      margin-bottom: 40px;
     }
+
     th, td {
-      border: 1px solid #000;
-      padding: 8px;
+      border: 1px solid #ccc;
+      padding: 12px 15px;
     }
+
     th {
       background-color: #000;
       color: white;
     }
-    .section-title {
-      margin-top: 40px;
-      font-size: 1.2em;
+
+    td:first-child {
+      font-weight: bold;
+      text-transform: lowercase;
     }
+
+    .section-title {
+      font-size: 1.3em;
+      font-weight: bold;
+      margin: 30px 0 10px;
+    }
+
     .button {
       margin: 5px;
-      padding: 5px 10px;
+      padding: 6px 12px;
       font-weight: bold;
       border-radius: 6px;
       border: none;
       color: white;
       cursor: pointer;
     }
+
     .played-btn { background-color: #28a745; }
     .unknown-btn { background-color: #007bff; }
+
     .reset-btn {
       float: right;
-      margin-right: 5%;
+      margin-right: 8%;
       padding: 10px 16px;
       border-radius: 10px;
       border: none;
@@ -46,12 +65,18 @@
       font-weight: bold;
       cursor: pointer;
     }
+
+    #totalRequests {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
   <h2>🎶 Admin - Song Requests 🎶</h2>
   <p id="totalRequests">Total Requests: 0</p>
   <button class="reset-btn" onclick="resetTables()">Reset All</button>
+
   <table id="requestsTable">
     <thead>
       <tr>
@@ -97,11 +122,13 @@
 
     function createRow(cells, includeActions = true) {
       const tr = document.createElement('tr');
-      cells.forEach(text => {
+      cells.forEach((text, i) => {
         const td = document.createElement('td');
         td.textContent = text || '—';
+        if (i === 0) td.style.fontWeight = 'bold'; // Bold for song title
         tr.appendChild(td);
       });
+
       if (includeActions) {
         const actionCell = document.createElement('td');
         const playedBtn = document.createElement('button');
@@ -118,6 +145,7 @@
         actionCell.appendChild(unknownBtn);
         tr.appendChild(actionCell);
       }
+
       return tr;
     }
 
@@ -144,7 +172,7 @@
       fetch(sheetURL)
         .then(response => response.text())
         .then(csv => {
-          const rows = csv.trim().split('\n').slice(1); // Skip header
+          const rows = csv.trim().split('\n').slice(1);
           rows.forEach(line => {
             const [song, name, dedication, timestamp, tip] = line.split(',');
             const key = `${song}|${name}|${dedication}`;
