@@ -142,8 +142,9 @@
     knownTimestamps.add(timestampRaw);
 
     const tr = document.createElement("tr");
-    const values = [song, name, dedication, formatTimestamp(timestampRaw)];
+    tr.dataset.timestamp = timestampRaw;
 
+    const values = [song, name, dedication, formatTimestamp(timestampRaw)];
     values.forEach((val, idx) => {
       const td = document.createElement("td");
       td.textContent = val;
@@ -181,7 +182,8 @@
     undoBtn.onclick = () => {
       tr.classList.remove("dimmed-row");
       restoreActionButtons(tr);
-      destinationTable.insertBefore(tr, destinationTable.firstChild);
+      destinationTable.removeChild(tr);
+      requestsTable.insertBefore(tr, requestsTable.firstChild);
       updateTotal();
     };
     actionCell.appendChild(undoBtn);
@@ -212,23 +214,19 @@
       .then(response => response.text())
       .then(csv => {
         const rows = csv.trim().split("\n").slice(1); // Skip header
-        const newRows = [];
-
-        // Only reset the active requests table, not played/unknown
-        requestsTable.innerHTML = "";
-
-        // Rebuild knownTimestamps by scanning all tables
-        [requestsTable, playedTable, unknownTable].forEach(table => {
-          Array.from(table.children).forEach(row => {
-            const timestamp = row.children[3]?.textContent;
-            if (timestamp) knownTimestamps.add(timestamp);
-          });
-        });
+        const existingTimestamps = new Set([
+          ...Array.from(requestsTable.children).map(row => row.dataset.timestamp),
+          ...Array.from(playedTable.children).map(row => row.dataset.timestamp),
+          ...Array.from(unknownTable.children).map(row => row.dataset.timestamp)
+        ]);
 
         rows.reverse().forEach(row => {
           const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, ''));
-          const tr = createRow(cols);
-          if (tr) requestsTable.insertBefore(tr, requestsTable.firstChild);
+          const timestampRaw = cols[3];
+          if (!existingTimestamps.has(timestampRaw)) {
+            const tr = createRow(cols);
+            if (tr) requestsTable.insertBefore(tr, requestsTable.firstChild);
+          }
         });
 
         updateTotal();
@@ -251,6 +249,7 @@
   fetchCSVData();
   setInterval(fetchCSVData, 10000); // Refresh every 10 seconds
 </script>
+
 
 
 
