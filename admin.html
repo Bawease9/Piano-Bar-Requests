@@ -124,13 +124,12 @@
   const playedTable = document.querySelector("#playedTable tbody");
   const unknownTable = document.querySelector("#unknownTable tbody");
   const totalCount = document.getElementById("totalCount");
-  const seenRequests = new Set(); // prevent duplicate entries
+  const seenRequests = new Set();
 
   function formatTimestamp(isoString) {
     if (!isoString) return "—";
     const date = new Date(isoString);
-    if (isNaN(date.getTime())) return "—"; // gracefully handle bad data
-
+    if (isNaN(date.getTime())) return "—";
     const options = { hour: 'numeric', minute: 'numeric', hour12: true };
     const time = date.toLocaleTimeString(undefined, options).toLowerCase();
     const dateStr = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
@@ -224,16 +223,23 @@
     totalCount.textContent = `Total Requests: ${requestsTable.children.length}`;
   }
 
+  // ✅ New fetchCSVData with clearing + deduping
   function fetchCSVData() {
     fetch(sheetCSVUrl)
       .then(response => response.text())
       .then(csv => {
         const rows = csv.trim().split("\n").slice(1); // Skip header
+
+        // Clear requests table and seen set on each refresh
+        requestsTable.innerHTML = "";
+        seenRequests.clear();
+
         rows.reverse().forEach(row => {
           const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, ''));
           const tr = createRow(cols);
           if (tr) requestsTable.insertBefore(tr, requestsTable.firstChild);
         });
+
         updateTotal();
       })
       .catch(err => {
@@ -254,6 +260,7 @@
   fetchCSVData();
   setInterval(fetchCSVData, 10000); // Auto-fetch every 10 seconds
 </script>
+
 
 </body>
 </html>
