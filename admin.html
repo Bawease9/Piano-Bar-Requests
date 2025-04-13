@@ -216,10 +216,9 @@
 
         // Only reset the active requests table, not played/unknown
         requestsTable.innerHTML = "";
-        knownTimestamps.clear();
 
-        // Add timestamps from played and unknown tables to known set
-        [playedTable, unknownTable].forEach(table => {
+        // Rebuild knownTimestamps by scanning all tables
+        [requestsTable, playedTable, unknownTable].forEach(table => {
           Array.from(table.children).forEach(row => {
             const timestamp = row.children[3]?.textContent;
             if (timestamp) knownTimestamps.add(timestamp);
