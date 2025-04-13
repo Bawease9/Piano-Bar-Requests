@@ -7,7 +7,8 @@
       font-family: Arial, sans-serif;
       text-align: center;
       background-color: #111;
-      color: #fff;
+      color: #eee;
+      margin: 0;
     }
 
     .header {
@@ -15,6 +16,7 @@
       justify-content: space-between;
       align-items: center;
       padding: 30px 8%;
+      background-color: #222;
     }
 
     h2 {
@@ -23,7 +25,7 @@
 
     #totalRequests {
       font-size: 18px;
-      margin-bottom: 10px;
+      margin: 20px;
     }
 
     .reset-btn {
@@ -56,7 +58,7 @@
 
     td:first-child {
       font-weight: bold;
-      font-size: 1.1em;
+      font-size: 1.2em;
     }
 
     .section-title {
@@ -85,6 +87,7 @@
     <h2>🎶 Admin - Song Requests 🎶</h2>
     <button class="reset-btn" onclick="resetTables()">Reset All</button>
   </div>
+
   <p id="totalRequests">Total Requests: 0</p>
 
   <table id="requestsTable">
@@ -93,7 +96,7 @@
         <th>Song/Artist</th>
         <th>Your Name</th>
         <th>Dedication</th>
-        <th>Requested</th>
+        <th>Timestamp</th>
         <th>Action</th>
       </tr>
     </thead>
@@ -130,33 +133,27 @@
 
   <script>
     const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
-    const activeRows = new Map(); // Tracks current request rows
+    const displayedRequests = new Map();
 
-    function formatTimeAgo(timestamp) {
-      const now = new Date();
-      const then = new Date(timestamp);
-      const diffMs = now - then;
-      const diffMin = Math.floor(diffMs / 60000);
-      const diffHr = Math.floor(diffMin / 60);
-
-      if (isNaN(diffMin)) return '—';
-
-      if (diffMin < 1) return 'Just now';
-      if (diffMin < 60) return `${diffMin} min ago`;
-      return `${diffHr} hr ago`;
+    function formatTimestamp(ts) {
+      if (!ts) return '—';
+      const date = new Date(ts);
+      const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+      const dateStr = date.toLocaleDateString();
+      return `${time} ${dateStr}`;
     }
 
-    function createRow([song, name, dedication, timestamp], location = 'main') {
+    function createRow(cells, location = 'main') {
       const tr = document.createElement('tr');
-      const key = `${song}|${name}|${dedication}`;
-
-      const cells = [song, name, dedication, timestamp].map((value, i) => {
+      cells.forEach((text, i) => {
         const td = document.createElement('td');
-        td.textContent = (i === 3 && location === 'main') ? formatTimeAgo(value) : (value || '—');
-        return td;
+        td.textContent = i === 3 ? formatTimestamp(text) : (text || '—');
+        if (i === 0) {
+          td.style.fontWeight = 'bold';
+          td.style.fontSize = '1.2em';
+        }
+        tr.appendChild(td);
       });
-
-      cells.forEach(td => tr.appendChild(td));
 
       const actionCell = document.createElement('td');
 
@@ -164,12 +161,12 @@
         const playedBtn = document.createElement('button');
         playedBtn.textContent = 'Mark as Played';
         playedBtn.className = 'button played-btn';
-        playedBtn.onclick = () => moveRow(key, tr, 'played');
+        playedBtn.onclick = () => moveRow(tr, 'played');
 
         const unknownBtn = document.createElement('button');
         unknownBtn.textContent = "Don't Know";
         unknownBtn.className = 'button unknown-btn';
-        unknownBtn.onclick = () => moveRow(key, tr, 'unknown');
+        unknownBtn.onclick = () => moveRow(tr, 'unknown');
 
         actionCell.appendChild(playedBtn);
         actionCell.appendChild(unknownBtn);
@@ -177,7 +174,7 @@
         const undoBtn = document.createElement('button');
         undoBtn.textContent = 'Undo';
         undoBtn.className = 'button undo-btn';
-        undoBtn.onclick = () => moveRow(key, tr, 'main');
+        undoBtn.onclick = () => moveRow(tr, 'main');
         actionCell.appendChild(undoBtn);
       }
 
@@ -185,15 +182,10 @@
       return tr;
     }
 
-    function moveRow(key, row, destination) {
-      activeRows.delete(key);
-      row.remove();
-
+    function moveRow(row, destination) {
       const cells = Array.from(row.cells).map(cell => cell.textContent);
-      const now = new Date().toISOString();
-      cells[3] = now; // update timestamp
-
       const newRow = createRow(cells, destination);
+      const key = `${cells[0]}|${cells[1]}|${cells[2]}|${cells[3]}`;
 
       if (destination === 'played') {
         document.querySelector('#playedTable tbody').appendChild(newRow);
@@ -201,62 +193,63 @@
         document.querySelector('#unknownTable tbody').appendChild(newRow);
       } else {
         document.querySelector('#requestsTable tbody').appendChild(newRow);
-        activeRows.set(key, newRow);
       }
 
-      document.getElementById('totalRequests').textContent = `Total Requests: ${activeRows.size}`;
+      row.remove();
+      displayedRequests.set(key, destination);
     }
 
     function resetTables() {
       document.querySelector('#requestsTable tbody').innerHTML = '';
       document.querySelector('#playedTable tbody').innerHTML = '';
       document.querySelector('#unknownTable tbody').innerHTML = '';
-      activeRows.clear();
+      displayedRequests.clear();
+      document.getElementById('totalRequests').textContent = 'Total Requests: 0';
     }
 
-    function fetchAndUpdateRequests() {
+    function fetchAndRender() {
       fetch(sheetURL)
         .then(response => response.text())
         .then(csv => {
-          const lines = csv.trim().split('\n').slice(1);
+          const rows = csv.trim().split('\n').slice(1).map(line => {
+            const [song, name, dedication, timestamp] = line.split(',');
+            return { song, name, dedication, timestamp };
+          });
+
+          rows.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
           const currentKeys = new Set();
 
-          // Sort by most recent timestamp (4th column)
-          const sortedLines = lines
-            .map(line => line.split(','))
-            .sort((a, b) => new Date(b[3]) - new Date(a[3]));
-
-          sortedLines.forEach(([song, name, dedication, timestamp]) => {
-            const key = `${song}|${name}|${dedication}`;
+          rows.forEach(({ song, name, dedication, timestamp }) => {
+            const key = `${song}|${name}|${dedication}|${timestamp}`;
             currentKeys.add(key);
 
-            if (!activeRows.has(key)) {
-              const newRow = createRow([song, name, dedication, timestamp]);
-              document.querySelector('#requestsTable tbody').appendChild(newRow);
-              activeRows.set(key, newRow);
-            } else {
-              // Update "x min ago" text
-              const row = activeRows.get(key);
-              const cell = row.cells[3];
-              cell.textContent = formatTimeAgo(timestamp);
+            if (!displayedRequests.has(key)) {
+              const tr = createRow([song, name, dedication, timestamp]);
+              document.querySelector('#requestsTable tbody').appendChild(tr);
+              displayedRequests.set(key, 'main');
+              document.getElementById('totalRequests').textContent = `Total Requests: ${Array.from(displayedRequests.values()).filter(v => v === 'main').length}`;
             }
           });
 
-          // Remove rows no longer in the Sheet
-          for (const key of activeRows.keys()) {
-            if (!currentKeys.has(key)) {
-              const row = activeRows.get(key);
-              if (row && row.parentNode) row.remove();
-              activeRows.delete(key);
+          // Remove requests that were deleted from the sheet
+          for (const [key, location] of displayedRequests) {
+            if (!currentKeys.has(key) && location === 'main') {
+              displayedRequests.delete(key);
+              const rows = document.querySelectorAll('#requestsTable tbody tr');
+              rows.forEach(row => {
+                const cells = Array.from(row.cells).map(td => td.textContent);
+                const rowKey = `${cells[0]}|${cells[1]}|${cells[2]}|${cells[3]}`;
+                if (rowKey === key) row.remove();
+              });
+              document.getElementById('totalRequests').textContent = `Total Requests: ${Array.from(displayedRequests.values()).filter(v => v === 'main').length}`;
             }
           }
-
-          document.getElementById('totalRequests').textContent = `Total Requests: ${activeRows.size}`;
         });
     }
 
-    fetchAndUpdateRequests();
-    setInterval(fetchAndUpdateRequests, 10000); // every 10s
+    fetchAndRender();
+    setInterval(fetchAndRender, 10000); // every 10s
   </script>
 </body>
 </html>
