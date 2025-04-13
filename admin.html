@@ -7,70 +7,257 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      color: #111;
+      background: #f9f9f9;
       padding: 20px;
-      text-align: center;
     }
     h1 {
+      text-align: center;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
       margin-bottom: 20px;
+      padding: 0 5%;
+    }
+    .total-requests {
+      font-weight: bold;
+      font-size: 1.2em;
     }
     table {
-      margin: 0 auto;
+      margin: auto;
       border-collapse: collapse;
       width: 90%;
-      max-width: 800px;
+      margin-bottom: 40px;
     }
     th, td {
+      border: 1px solid #ddd;
       padding: 12px;
-      border: 1px solid #ccc;
       text-align: left;
     }
     th {
-      background-color: #eee;
+      background-color: #111;
+      color: white;
     }
     tr:nth-child(even) {
-      background-color: #fafafa;
+      background-color: #f2f2f2;
+    }
+    tr:nth-child(odd) {
+      background-color: #fff;
+    }
+    td.song-title {
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+    button {
+      padding: 6px 12px;
+      margin-right: 5px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .section-title {
+      text-align: center;
+      margin-top: 60px;
     }
   </style>
 </head>
 <body>
-  <h1>🎵 Song Requests Dashboard 🎵</h1>
-  <table>
+  <h1>🎶 Admin - Song Requests 🎶</h1>
+  <div class="top-bar">
+    <div class="total-requests" id="totalCount">Total Requests: 0</div>
+    <button onclick="resetAll()">Reset All</button>
+  </div>
+
+  <table id="requestsTable">
     <thead>
       <tr>
-        <th>Song</th>
-        <th>Artist</th>
+        <th>Song #1</th>
+        <th>Song #2</th>
         <th>Name</th>
         <th>Dedication</th>
         <th>Timestamp</th>
+        <th>Action</th>
       </tr>
     </thead>
-    <tbody id="requestTable"></tbody>
+    <tbody></tbody>
   </table>
 
-  <script>
-    fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv")
-      .then(res => res.text())
-      .then(csv => {
-        const rows = csv.trim().split('\n').slice(1); // skip header
-        const tbody = document.getElementById("requestTable");
+  <h2 class="section-title">✅ Played Songs</h2>
+  <table id="playedTable">
+    <thead>
+      <tr>
+        <th>Song #1</th>
+        <th>Song #2</th>
+        <th>Name</th>
+        <th>Dedication</th>
+        <th>Timestamp</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-        rows.forEach(row => {
-          const cols = row.split(',');
+  <h2 class="section-title">🤷‍♂️ Songs We Don't Know</h2>
+  <table id="unknownTable">
+    <thead>
+      <tr>
+        <th>Song #1</th>
+        <th>Song #2</th>
+        <th>Name</th>
+        <th>Dedication</th>
+        <th>Timestamp</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+  const csvURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv";
+
+  const requestsTable = document.querySelector("#requestsTable tbody");
+  const playedTable = document.querySelector("#playedTable tbody");
+  const unknownTable = document.querySelector("#unknownTable tbody");
+  const totalCount = document.getElementById("totalCount");
+
+  let knownTimestamps = new Set();
+
+  function formatSimpleTimestamp(ts) {
+    const date = new Date(ts);
+    if (isNaN(date)) return ts;
+    const options = { hour: 'numeric', minute: 'numeric', hour12: true };
+    const time = date.toLocaleTimeString(undefined, options).toLowerCase();
+    const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+    return `${time} ${dateStr}`;
+  }
+
+  function addUndoButton(tr, destinationTable) {
+    const actionCell = tr.querySelector("td:last-child");
+    actionCell.innerHTML = "";
+
+    const undoBtn = document.createElement("button");
+    undoBtn.textContent = "Undo";
+    undoBtn.onclick = () => {
+      tr.remove();
+      restoreActionButtons(tr);
+      destinationTable.insertBefore(tr, destinationTable.firstChild);
+      updateTotal();
+    };
+
+    actionCell.appendChild(undoBtn);
+  }
+
+  function restoreActionButtons(tr) {
+    const actionCell = tr.querySelector("td:last-child");
+    actionCell.innerHTML = "";
+
+    const playedBtn = document.createElement("button");
+    playedBtn.textContent = "Mark as Played";
+    playedBtn.onclick = () => {
+      tr.remove();
+      addUndoButton(tr, requestsTable);
+      playedTable.appendChild(tr);
+      updateTotal();
+    };
+
+    const unknownBtn = document.createElement("button");
+    unknownBtn.textContent = "Don't Know";
+    unknownBtn.onclick = () => {
+      tr.remove();
+      addUndoButton(tr, requestsTable);
+      unknownTable.appendChild(tr);
+      updateTotal();
+    };
+
+    actionCell.appendChild(playedBtn);
+    actionCell.appendChild(unknownBtn);
+  }
+
+  function updateTotal() {
+    totalCount.textContent = `Total Requests: ${requestsTable.children.length}`;
+  }
+
+  function fetchData() {
+    fetch(csvURL)
+      .then(response => response.text())
+      .then(text => {
+        const rows = text.trim().split("\n").slice(1); // Skip header
+        rows.reverse().forEach(row => {
+          const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col =>
+            col.replace(/^"|"$/g, "").replace(/""/g, '"')
+          );
+
+          const [timestampRaw, song1, song2, name, dedication] = cols;
+          const key = timestampRaw;
+
+          if (knownTimestamps.has(key)) return;
+          knownTimestamps.add(key);
+
           const tr = document.createElement("tr");
-          cols.forEach(col => {
+          const formattedTime = formatSimpleTimestamp(timestampRaw);
+          const tdData = [song1, song2, name, dedication, formattedTime];
+
+          tdData.forEach((val, idx) => {
             const td = document.createElement("td");
-            td.textContent = col;
+            td.textContent = val;
+            if (idx === 0 || idx === 1) td.classList.add("song-title");
             tr.appendChild(td);
           });
-          tbody.appendChild(tr);
+
+          const actionTd = document.createElement("td");
+
+          const playedBtn = document.createElement("button");
+          playedBtn.textContent = "Mark as Played";
+          playedBtn.onclick = () => {
+            tr.remove();
+            addUndoButton(tr, requestsTable);
+            playedTable.appendChild(tr);
+            updateTotal();
+          };
+
+          const unknownBtn = document.createElement("button");
+          unknownBtn.textContent = "Don't Know";
+          unknownBtn.onclick = () => {
+            tr.remove();
+            addUndoButton(tr, requestsTable);
+            unknownTable.appendChild(tr);
+            updateTotal();
+          };
+
+          actionTd.appendChild(playedBtn);
+          actionTd.appendChild(unknownBtn);
+          tr.appendChild(actionTd);
+
+          requestsTable.insertBefore(tr, requestsTable.firstChild);
         });
+
+        updateTotal();
       })
       .catch(err => {
-        console.error("Failed to load song requests:", err);
+        console.error("Error loading CSV data:", err);
+        alert("Could not load requests. Please check your spreadsheet permissions.");
       });
-  </script>
+  }
+
+  function resetAll() {
+    if (confirm("Are you sure you want to reset all lists?")) {
+      requestsTable.innerHTML = "";
+      playedTable.innerHTML = "";
+      unknownTable.innerHTML = "";
+      knownTimestamps.clear();
+      fetchData();
+    }
+  }
+
+  fetchData();
+  setInterval(fetchData, 10000); // Refresh every 10 seconds
+</script>
+
 </body>
 </html>
 
