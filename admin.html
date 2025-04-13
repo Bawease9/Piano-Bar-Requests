@@ -76,6 +76,11 @@
     .played-btn { background-color: #28a745; }
     .unknown-btn { background-color: #007bff; }
     .undo-btn { background-color: #ff9800; }
+
+    #loading {
+      font-style: italic;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -84,6 +89,7 @@
     <button class="reset-btn" onclick="resetTables()">Reset All</button>
   </div>
   <p id="totalRequests">Total Requests: 0</p>
+  <p id="loading">Loading requests...</p>
 
   <table id="requestsTable">
     <thead>
@@ -129,6 +135,8 @@
   <script>
     const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
     const appendedRows = new Set();
+    let lastTimestamp = 0;
+    let isFirstLoad = true;
 
     function formatTimestamp(ts) {
       if (!ts) return '—';
@@ -183,7 +191,7 @@
     function moveRow(row, destination) {
       const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) + ' ' + new Date().toLocaleDateString();
       row.cells[3].textContent = timestamp;
-      row.removeChild(row.lastChild); // Remove old action buttons
+      row.removeChild(row.lastChild);
 
       const cells = Array.from(row.cells).map(cell => cell.textContent);
       const newRow = createRow(cells, destination);
@@ -204,6 +212,7 @@
       document.querySelector('#playedTable tbody').innerHTML = '';
       document.querySelector('#unknownTable tbody').innerHTML = '';
       appendedRows.clear();
+      lastTimestamp = 0;
     }
 
     function fetchAndAppendNewRows() {
@@ -213,20 +222,27 @@
           const rows = csv.trim().split('\n').slice(1);
           rows.forEach(line => {
             const [song, name, dedication, timestamp, tip] = line.split(',');
-            const key = `${song}|${name}|${dedication}`;
-            if (!appendedRows.has(key)) {
+            const key = `${song}|${name}|${dedication}|${timestamp}`;
+            const tsValue = new Date(timestamp).getTime();
+            if (tsValue > lastTimestamp && !appendedRows.has(key)) {
+              lastTimestamp = tsValue;
               appendedRows.add(key);
               const tr = createRow([song, name, dedication, timestamp]);
               document.querySelector('#requestsTable tbody').appendChild(tr);
               document.getElementById('totalRequests').textContent = `Total Requests: ${appendedRows.size}`;
             }
           });
+          if (isFirstLoad) {
+            document.getElementById('loading').style.display = 'none';
+            isFirstLoad = false;
+          }
         });
     }
 
     fetchAndAppendNewRows();
-    setInterval(fetchAndAppendNewRows, 5000);
+    setInterval(fetchAndAppendNewRows, 10000);
   </script>
 </body>
 </html>
+
 
