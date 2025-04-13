@@ -130,59 +130,90 @@
 
 <script>
 const sheetURL = 'https://corsproxy.io/?https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/gviz/tq?tqx=out:json';
-';
-';
 
-  const requestsTable = document.querySelector("#requestsTable tbody");
-  const playedTable = document.querySelector("#playedTable tbody");
-  const unknownTable = document.querySelector("#unknownTable tbody");
-  const totalCount = document.getElementById("totalCount");
+const requestsTable = document.querySelector("#requestsTable tbody");
+const playedTable = document.querySelector("#playedTable tbody");
+const unknownTable = document.querySelector("#unknownTable tbody");
+const totalCount = document.getElementById("totalCount");
 
-  let knownTimestamps = new Set();
+let knownTimestamps = new Set();
 
-  function formatTimestamp(raw) {
-    try {
-      const match = raw.match(/Date\\((.*?)\\)/);
-      if (!match) return raw;
-      const parts = match[1].split(',').map(Number);
-      const date = new Date(...parts);
-      const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-      const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
-      return `${time} ${dateStr}`;
-    } catch (e) {
-      return raw;
-    }
+function formatTimestamp(raw) {
+  try {
+    const match = raw.match(/Date\\((.*?)\\)/);
+    if (!match) return raw;
+    const parts = match[1].split(',').map(Number);
+    const date = new Date(...parts);
+    const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+    return `${time} ${dateStr}`;
+  } catch (e) {
+    return raw;
   }
+}
 
-  function stripHighlightClasses(row) {
-    row.querySelectorAll("td.song-title").forEach(cell => {
-      cell.className = "song-title";
-    });
-  }
+function stripHighlightClasses(row) {
+  row.querySelectorAll("td.song-title").forEach(cell => {
+    cell.className = "song-title";
+  });
+}
 
-  function createTableRow(cells) {
-    const song = cells[0]?.v || "";
-    const name = cells[1]?.v || "";
-    const dedication = cells[2]?.v || "";
-    const timestampRaw = cells[3]?.f || cells[3]?.v || "";
-    const tip = cells[4]?.v || "";
+function createTableRow(cells) {
+  const song = cells[0]?.v || "";
+  const name = cells[1]?.v || "";
+  const dedication = cells[2]?.v || "";
+  const timestampRaw = cells[3]?.f || cells[3]?.v || "";
+  const tip = cells[4]?.v || "";
 
-    const key = timestampRaw;
-    if (knownTimestamps.has(key)) return null;
-    knownTimestamps.add(key);
+  const key = timestampRaw;
+  if (knownTimestamps.has(key)) return null;
+  knownTimestamps.add(key);
 
-    const row = document.createElement("tr");
-    const data = [song, name, dedication, formatTimestamp(timestampRaw), tip];
+  const row = document.createElement("tr");
+  const data = [song, name, dedication, formatTimestamp(timestampRaw), tip];
 
-    data.forEach((val, idx) => {
-      const td = document.createElement("td");
-      td.textContent = val;
-      if (idx === 0) td.classList.add("song-title");
-      row.appendChild(td);
-    });
+  data.forEach((val, idx) => {
+    const td = document.createElement("td");
+    td.textContent = val;
+    if (idx === 0) td.classList.add("song-title");
+    row.appendChild(td);
+  });
 
-    const actionCell = document.createElement("td");
+  const actionCell = document.createElement("td");
 
+  const playedBtn = document.createElement("button");
+  playedBtn.textContent = "Mark as Played";
+  playedBtn.onclick = () => {
+    row.remove();
+    stripHighlightClasses(row);
+    addUndoRow(row, playedTable);
+    highlightDuplicates();
+  };
+
+  const unknownBtn = document.createElement("button");
+  unknownBtn.textContent = "Don't Know";
+  unknownBtn.onclick = () => {
+    row.remove();
+    stripHighlightClasses(row);
+    addUndoRow(row, unknownTable);
+    highlightDuplicates();
+  };
+
+  actionCell.appendChild(playedBtn);
+  actionCell.appendChild(unknownBtn);
+  row.appendChild(actionCell);
+
+  return row;
+}
+
+function addUndoRow(row, targetTable) {
+  const actionCell = row.lastElementChild;
+  actionCell.innerHTML = '';
+  const undoBtn = document.createElement("button");
+  undoBtn.textContent = "Undo";
+  undoBtn.onclick = () => {
+    row.remove();
+    row.lastElementChild.innerHTML = '';
     const playedBtn = document.createElement("button");
     playedBtn.textContent = "Mark as Played";
     playedBtn.onclick = () => {
@@ -201,102 +232,67 @@ const sheetURL = 'https://corsproxy.io/?https://docs.google.com/spreadsheets/d/e
       highlightDuplicates();
     };
 
-    actionCell.appendChild(playedBtn);
-    actionCell.appendChild(unknownBtn);
-    row.appendChild(actionCell);
+    row.lastElementChild.appendChild(playedBtn);
+    row.lastElementChild.appendChild(unknownBtn);
+    requestsTable.insertBefore(row, requestsTable.firstChild);
+    highlightDuplicates();
+  };
+  actionCell.appendChild(undoBtn);
+  targetTable.appendChild(row);
+}
 
-    return row;
-  }
+function highlightDuplicates() {
+  const songMap = {};
+  document.querySelectorAll("#requestsTable td.song-title").forEach(cell => {
+    const song = cell.textContent.trim().toLowerCase();
+    if (!songMap[song]) songMap[song] = [];
+    songMap[song].push(cell);
+  });
 
-  function addUndoRow(row, targetTable) {
-    const actionCell = row.lastElementChild;
-    actionCell.innerHTML = '';
-    const undoBtn = document.createElement("button");
-    undoBtn.textContent = "Undo";
-    undoBtn.onclick = () => {
-      row.remove();
-      row.lastElementChild.innerHTML = '';
-      const playedBtn = document.createElement("button");
-      playedBtn.textContent = "Mark as Played";
-      playedBtn.onclick = () => {
-        row.remove();
-        stripHighlightClasses(row);
-        addUndoRow(row, playedTable);
-        highlightDuplicates();
-      };
-
-      const unknownBtn = document.createElement("button");
-      unknownBtn.textContent = "Don't Know";
-      unknownBtn.onclick = () => {
-        row.remove();
-        stripHighlightClasses(row);
-        addUndoRow(row, unknownTable);
-        highlightDuplicates();
-      };
-
-      row.lastElementChild.appendChild(playedBtn);
-      row.lastElementChild.appendChild(unknownBtn);
-      requestsTable.insertBefore(row, requestsTable.firstChild);
-      highlightDuplicates();
-    };
-    actionCell.appendChild(undoBtn);
-    targetTable.appendChild(row);
-  }
-
-  function highlightDuplicates() {
-    const songMap = {};
-    document.querySelectorAll("#requestsTable td.song-title").forEach(cell => {
-      const song = cell.textContent.trim().toLowerCase();
-      if (!songMap[song]) songMap[song] = [];
-      songMap[song].push(cell);
-    });
-
-    let colorIndex = 0;
-    const colorMap = {};
-    Object.entries(songMap).forEach(([song, cells]) => {
-      if (cells.length > 1) {
-        if (!colorMap[song]) {
-          colorMap[song] = `highlight-${colorIndex++ % 10}`;
-        }
-        cells.forEach(cell => cell.classList.add(colorMap[song]));
+  let colorIndex = 0;
+  const colorMap = {};
+  Object.entries(songMap).forEach(([song, cells]) => {
+    if (cells.length > 1) {
+      if (!colorMap[song]) {
+        colorMap[song] = `highlight-${colorIndex++ % 10}`;
       }
-    });
-  }
-
-  function fetchData() {
-    fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/gviz/tq?tqx=out:json")
-)
-      .then(res => res.text())
-      .then(text => {
-        const json = JSON.parse(text.substring(47).slice(0, -2));
-        const rows = json.table.rows;
-
-        rows.forEach(row => {
-          const tr = createTableRow(row.c);
-          if (tr) requestsTable.insertBefore(tr, requestsTable.firstChild);
-        });
-
-        totalCount.textContent = `Total Requests: ${requestsTable.children.length}`;
-        highlightDuplicates();
-      })
-      .catch(err => {
-        console.error("Error loading requests:", err);
-        alert("Could not load requests. Please check your spreadsheet permissions.");
-      });
-  }
-
-  function resetAll() {
-    if (confirm("Are you sure you want to reset all lists?")) {
-      requestsTable.innerHTML = "";
-      playedTable.innerHTML = "";
-      unknownTable.innerHTML = "";
-      knownTimestamps.clear();
-      fetchData();
+      cells.forEach(cell => cell.classList.add(colorMap[song]));
     }
-  }
+  });
+}
 
-  fetchData();
-  setInterval(fetchData, 10000);
+function fetchData() {
+  fetch(sheetURL)
+    .then(res => res.text())
+    .then(text => {
+      const json = JSON.parse(text.substring(47).slice(0, -2));
+      const rows = json.table.rows;
+
+      rows.forEach(row => {
+        const tr = createTableRow(row.c);
+        if (tr) requestsTable.insertBefore(tr, requestsTable.firstChild);
+      });
+
+      totalCount.textContent = `Total Requests: ${requestsTable.children.length}`;
+      highlightDuplicates();
+    })
+    .catch(err => {
+      console.error("Error loading requests:", err);
+      alert("Could not load requests. Please check your spreadsheet permissions.");
+    });
+}
+
+function resetAll() {
+  if (confirm("Are you sure you want to reset all lists?")) {
+    requestsTable.innerHTML = "";
+    playedTable.innerHTML = "";
+    unknownTable.innerHTML = "";
+    knownTimestamps.clear();
+    fetchData();
+  }
+}
+
+fetchData();
+setInterval(fetchData, 10000);
 </script>
-</body>
-</html>
+
