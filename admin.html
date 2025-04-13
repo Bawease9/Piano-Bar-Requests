@@ -5,10 +5,11 @@
   <style>
     body {
       font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
       text-align: center;
-      background-color: #111;
-      color: #eee;
       margin: 0;
+      padding: 0;
     }
 
     .header {
@@ -16,7 +17,6 @@
       justify-content: space-between;
       align-items: center;
       padding: 30px 8%;
-      background-color: #222;
     }
 
     h2 {
@@ -25,7 +25,7 @@
 
     #totalRequests {
       font-size: 18px;
-      margin: 20px;
+      margin-bottom: 10px;
     }
 
     .reset-btn {
@@ -43,7 +43,6 @@
       border-collapse: collapse;
       width: 85%;
       margin-bottom: 40px;
-      background-color: #222;
     }
 
     th, td {
@@ -52,7 +51,7 @@
     }
 
     th {
-      background-color: #000;
+      background-color: #222;
       color: white;
     }
 
@@ -87,7 +86,6 @@
     <h2>🎶 Admin - Song Requests 🎶</h2>
     <button class="reset-btn" onclick="resetTables()">Reset All</button>
   </div>
-
   <p id="totalRequests">Total Requests: 0</p>
 
   <table id="requestsTable">
@@ -133,11 +131,12 @@
 
   <script>
     const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
-    const displayedRequests = new Map();
+    const appendedRows = new Set();
 
     function formatTimestamp(ts) {
       if (!ts) return '—';
       const date = new Date(ts);
+      if (isNaN(date)) return ts; // fallback: show raw string if parsing fails
       const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
       const dateStr = date.toLocaleDateString();
       return `${time} ${dateStr}`;
@@ -156,7 +155,6 @@
       });
 
       const actionCell = document.createElement('td');
-
       if (location === 'main') {
         const playedBtn = document.createElement('button');
         playedBtn.textContent = 'Mark as Played';
@@ -183,9 +181,12 @@
     }
 
     function moveRow(row, destination) {
+      const timestamp = new Date().toISOString();
+      row.cells[3].textContent = formatTimestamp(timestamp);
+      row.removeChild(row.lastChild);
+
       const cells = Array.from(row.cells).map(cell => cell.textContent);
       const newRow = createRow(cells, destination);
-      const key = `${cells[0]}|${cells[1]}|${cells[2]}|${cells[3]}`;
 
       if (destination === 'played') {
         document.querySelector('#playedTable tbody').appendChild(newRow);
@@ -196,60 +197,42 @@
       }
 
       row.remove();
-      displayedRequests.set(key, destination);
     }
 
     function resetTables() {
       document.querySelector('#requestsTable tbody').innerHTML = '';
       document.querySelector('#playedTable tbody').innerHTML = '';
       document.querySelector('#unknownTable tbody').innerHTML = '';
-      displayedRequests.clear();
-      document.getElementById('totalRequests').textContent = 'Total Requests: 0';
+      appendedRows.clear();
     }
 
-    function fetchAndRender() {
+    function fetchAndAppendNewRows() {
       fetch(sheetURL)
         .then(response => response.text())
         .then(csv => {
-          const rows = csv.trim().split('\n').slice(1).map(line => {
-            const [song, name, dedication, timestamp] = line.split(',');
+          const lines = csv.trim().split('\n');
+          const rows = lines.slice(1).map(line => {
+            const [song, name, dedication, timestamp] = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
             return { song, name, dedication, timestamp };
           });
 
           rows.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-          const currentKeys = new Set();
-
-          rows.forEach(({ song, name, dedication, timestamp }) => {
-            const key = `${song}|${name}|${dedication}|${timestamp}`;
-            currentKeys.add(key);
-
-            if (!displayedRequests.has(key)) {
-              const tr = createRow([song, name, dedication, timestamp]);
+          rows.forEach(row => {
+            const key = `${row.song}|${row.name}|${row.dedication}|${row.timestamp}`;
+            if (!appendedRows.has(key)) {
+              appendedRows.add(key);
+              const tr = createRow([row.song, row.name, row.dedication, row.timestamp]);
               document.querySelector('#requestsTable tbody').appendChild(tr);
-              displayedRequests.set(key, 'main');
-              document.getElementById('totalRequests').textContent = `Total Requests: ${Array.from(displayedRequests.values()).filter(v => v === 'main').length}`;
             }
           });
 
-          // Remove requests that were deleted from the sheet
-          for (const [key, location] of displayedRequests) {
-            if (!currentKeys.has(key) && location === 'main') {
-              displayedRequests.delete(key);
-              const rows = document.querySelectorAll('#requestsTable tbody tr');
-              rows.forEach(row => {
-                const cells = Array.from(row.cells).map(td => td.textContent);
-                const rowKey = `${cells[0]}|${cells[1]}|${cells[2]}|${cells[3]}`;
-                if (rowKey === key) row.remove();
-              });
-              document.getElementById('totalRequests').textContent = `Total Requests: ${Array.from(displayedRequests.values()).filter(v => v === 'main').length}`;
-            }
-          }
+          document.getElementById('totalRequests').textContent = `Total Requests: ${appendedRows.size}`;
         });
     }
 
-    fetchAndRender();
-    setInterval(fetchAndRender, 10000); // every 10s
+    fetchAndAppendNewRows();
+    setInterval(fetchAndAppendNewRows, 10000);
   </script>
 </body>
 </html>
