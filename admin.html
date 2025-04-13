@@ -124,7 +124,7 @@
   const playedTable = document.querySelector("#playedTable tbody");
   const unknownTable = document.querySelector("#unknownTable tbody");
   const totalCount = document.getElementById("totalCount");
-  const seenRequests = new Set();
+  const knownTimestamps = new Set();
 
   function formatTimestamp(isoString) {
     if (!isoString) return "—";
@@ -138,9 +138,8 @@
 
   function createRow(data) {
     const [song, name, dedication, timestampRaw] = data;
-    const uniqueKey = `${song}|${name}|${dedication}|${timestampRaw}`;
-    if (seenRequests.has(uniqueKey)) return null;
-    seenRequests.add(uniqueKey);
+    if (!timestampRaw || knownTimestamps.has(timestampRaw)) return null;
+    knownTimestamps.add(timestampRaw);
 
     const tr = document.createElement("tr");
     const values = [song, name, dedication, formatTimestamp(timestampRaw)];
@@ -155,21 +154,11 @@
     const actionTd = document.createElement("td");
     const playedBtn = document.createElement("button");
     playedBtn.textContent = "Mark as Played";
-    playedBtn.onclick = () => {
-      tr.classList.add("dimmed-row");
-      addUndoButton(tr, requestsTable);
-      playedTable.appendChild(tr);
-      updateTotal();
-    };
+    playedBtn.onclick = () => moveToTable(tr, playedTable);
 
     const unknownBtn = document.createElement("button");
     unknownBtn.textContent = "Don't Know";
-    unknownBtn.onclick = () => {
-      tr.classList.add("dimmed-row");
-      addUndoButton(tr, requestsTable);
-      unknownTable.appendChild(tr);
-      updateTotal();
-    };
+    unknownBtn.onclick = () => moveToTable(tr, unknownTable);
 
     actionTd.appendChild(playedBtn);
     actionTd.appendChild(unknownBtn);
@@ -177,19 +166,24 @@
     return tr;
   }
 
+  function moveToTable(tr, destinationTable) {
+    tr.classList.add("dimmed-row");
+    addUndoButton(tr, requestsTable);
+    destinationTable.appendChild(tr);
+    updateTotal();
+  }
+
   function addUndoButton(tr, destinationTable) {
     const actionCell = tr.querySelector("td:last-child");
     actionCell.innerHTML = "";
     const undoBtn = document.createElement("button");
     undoBtn.textContent = "Undo";
-
     undoBtn.onclick = () => {
       tr.classList.remove("dimmed-row");
       restoreActionButtons(tr);
       destinationTable.insertBefore(tr, destinationTable.firstChild);
       updateTotal();
     };
-
     actionCell.appendChild(undoBtn);
   }
 
@@ -199,21 +193,11 @@
 
     const playedBtn = document.createElement("button");
     playedBtn.textContent = "Mark as Played";
-    playedBtn.onclick = () => {
-      tr.classList.add("dimmed-row");
-      addUndoButton(tr, requestsTable);
-      playedTable.appendChild(tr);
-      updateTotal();
-    };
+    playedBtn.onclick = () => moveToTable(tr, playedTable);
 
     const unknownBtn = document.createElement("button");
     unknownBtn.textContent = "Don't Know";
-    unknownBtn.onclick = () => {
-      tr.classList.add("dimmed-row");
-      addUndoButton(tr, requestsTable);
-      unknownTable.appendChild(tr);
-      updateTotal();
-    };
+    unknownBtn.onclick = () => moveToTable(tr, unknownTable);
 
     actionCell.appendChild(playedBtn);
     actionCell.appendChild(unknownBtn);
@@ -223,16 +207,24 @@
     totalCount.textContent = `Total Requests: ${requestsTable.children.length}`;
   }
 
-  // ✅ New fetchCSVData with clearing + deduping
   function fetchCSVData() {
     fetch(sheetCSVUrl)
       .then(response => response.text())
       .then(csv => {
         const rows = csv.trim().split("\n").slice(1); // Skip header
+        const newRows = [];
 
-        // Clear requests table and seen set on each refresh
+        // Only reset the active requests table, not played/unknown
         requestsTable.innerHTML = "";
-        seenRequests.clear();
+        knownTimestamps.clear();
+
+        // Add timestamps from played and unknown tables to known set
+        [playedTable, unknownTable].forEach(table => {
+          Array.from(table.children).forEach(row => {
+            const timestamp = row.children[3]?.textContent;
+            if (timestamp) knownTimestamps.add(timestamp);
+          });
+        });
 
         rows.reverse().forEach(row => {
           const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, ''));
@@ -252,14 +244,15 @@
       requestsTable.innerHTML = "";
       playedTable.innerHTML = "";
       unknownTable.innerHTML = "";
-      seenRequests.clear();
+      knownTimestamps.clear();
       fetchCSVData();
     }
   }
 
   fetchCSVData();
-  setInterval(fetchCSVData, 10000); // Auto-fetch every 10 seconds
+  setInterval(fetchCSVData, 10000); // Refresh every 10 seconds
 </script>
+
 
 
 </body>
