@@ -126,13 +126,16 @@
   const totalCount = document.getElementById("totalCount");
   const knownTimestamps = new Set();
 
-  function formatTimestamp(isoString) {
-    const date = new Date(isoString);
-    const options = { hour: 'numeric', minute: 'numeric', hour12: true };
-    const time = date.toLocaleTimeString(undefined, options).toLowerCase();
-    const dateStr = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-    return `${time} ${dateStr}`;
-  }
+ function formatTimestamp(isoString) {
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return "Invalid Date"; // Fallback for bad data
+
+  const options = { hour: 'numeric', minute: 'numeric', hour12: true };
+  const time = date.toLocaleTimeString(undefined, options).toLowerCase();
+  const dateStr = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+  return `${time} ${dateStr}`;
+}
+
 
   function createRow(data) {
     const [song, name, dedication, timestampRaw] = data;
