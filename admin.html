@@ -3,7 +3,87 @@
 <head>
   <title>Admin - Song Requests</title>
   <style>
-    /* (style block remains unchanged for now to keep formatting clean) */
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: white;
+      margin: 0;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 8%;
+    }
+
+    h2 {
+      margin: 0;
+      color: #00ffcc;
+    }
+
+    #totalRequests {
+      font-size: 18px;
+      margin: 10px 0 20px;
+      color: #ccc;
+    }
+
+    .reset-btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      background-color: #e91e63;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    table {
+      width: 90%;
+      margin: 0 auto 40px;
+      border-collapse: separate;
+      border-spacing: 0 10px;
+    }
+
+    th, td {
+      padding: 12px 15px;
+      background-color: #1e1e1e;
+      border: none;
+      border-radius: 8px;
+    }
+
+    th {
+      background-color: #00bcd4;
+      color: black;
+    }
+
+    td:first-child {
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+
+    .section-title {
+      font-size: 1.4em;
+      font-weight: bold;
+      margin: 30px 0 10px;
+      color: #00bcd4;
+    }
+
+    .button {
+      margin: 5px;
+      padding: 8px 12px;
+      font-size: 0.9em;
+      font-weight: bold;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .played-btn { background-color: #4caf50; color: white; }
+    .unknown-btn { background-color: #ffc107; color: black; }
+    .undo-btn { background-color: #2196f3; color: white; }
   </style>
 </head>
 <body>
@@ -12,7 +92,6 @@
     <button class="reset-btn" onclick="resetTables()">Reset All</button>
   </div>
   <p id="totalRequests">Total Requests: 0</p>
-  <p id="loading">Loading requests...</p>
 
   <table id="requestsTable">
     <thead>
@@ -58,11 +137,10 @@
   <script>
     const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
     const appendedRows = new Set();
-    let isFirstLoad = true;
 
     function formatTimestamp(ts) {
       if (!ts) return '—';
-      if (ts.includes('T') || ts.includes('-')) {
+      if (ts.includes('T')) {
         const date = new Date(ts);
         const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
         const dateStr = date.toLocaleDateString();
@@ -114,7 +192,6 @@
       const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) + ' ' + new Date().toLocaleDateString();
       row.cells[3].textContent = timestamp;
       row.removeChild(row.lastChild);
-
       const cells = Array.from(row.cells).map(cell => cell.textContent);
       const newRow = createRow(cells, destination);
 
@@ -141,33 +218,21 @@
         .then(response => response.text())
         .then(csv => {
           const rows = csv.trim().split('\n').slice(1);
-          let newRows = 0;
-
           rows.forEach(line => {
-            const [song, name, dedication, timestamp] = line.split(',');
+            const [song, name, dedication, timestamp, tip] = line.split(',');
             const key = `${song}|${name}|${dedication}|${timestamp}`;
             if (!appendedRows.has(key)) {
               appendedRows.add(key);
               const tr = createRow([song, name, dedication, timestamp]);
               document.querySelector('#requestsTable tbody').appendChild(tr);
-              newRows++;
+              document.getElementById('totalRequests').textContent = `Total Requests: ${appendedRows.size}`;
             }
           });
-
-          if (isFirstLoad) {
-            document.getElementById('loading').style.display = 'none';
-            isFirstLoad = false;
-          }
-
-          document.getElementById('totalRequests').textContent = `Total Requests: ${appendedRows.size}`;
         });
     }
 
-    fetchAndAppendNewRows(); // initial load
-    setInterval(fetchAndAppendNewRows, 10000); // update every 10s
+    fetchAndAppendNewRows();
+    setInterval(fetchAndAppendNewRows, 10000);
   </script>
 </body>
 </html>
-
-
-
