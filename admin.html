@@ -115,34 +115,31 @@
   </table>
 
 <script>
-  const csvURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
-
+  const sheetCSVUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv";
   const requestsTable = document.querySelector("#requestsTable tbody");
   const playedTable = document.querySelector("#playedTable tbody");
   const unknownTable = document.querySelector("#unknownTable tbody");
   const totalCount = document.getElementById("totalCount");
 
-  let knownTimestamps = new Set();
+  const knownTimestamps = new Set();
 
-  function formatTimestamp(timestamp) {
-    const date = new Date(timestamp);
-    if (isNaN(date)) return timestamp;
-
+  function formatTimestamp(isoString) {
+    const date = new Date(isoString);
     const options = { hour: 'numeric', minute: 'numeric', hour12: true };
     const time = date.toLocaleTimeString(undefined, options).toLowerCase();
     const dateStr = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
     return `${time} ${dateStr}`;
   }
 
-  function parseCSVLine(line) {
-    const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(val => val.replace(/^"|"$/g, "").trim());
-    return values;
-  }
+  function createRow(data) {
+    const [song, name, dedication, timestampRaw] = data;
+    if (!timestampRaw || knownTimestamps.has(timestampRaw)) return null;
+    knownTimestamps.add(timestampRaw);
 
-  function createTableRow(song, name, dedication, formattedTimestamp, rawTimestamp) {
     const tr = document.createElement("tr");
 
-    [song, name, dedication, formattedTimestamp].forEach((val, idx) => {
+    const values = [song, name, dedication, formatTimestamp(timestampRaw)];
+    values.forEach((val, idx) => {
       const td = document.createElement("td");
       td.textContent = val;
       if (idx === 0) td.classList.add("song-title");
@@ -172,7 +169,6 @@
     actionTd.appendChild(playedBtn);
     actionTd.appendChild(unknownBtn);
     tr.appendChild(actionTd);
-
     return tr;
   }
 
@@ -222,32 +218,20 @@
     totalCount.textContent = `Total Requests: ${requestsTable.children.length}`;
   }
 
-  function fetchData() {
-    fetch(csvURL)
+  function fetchCSVData() {
+    fetch(sheetCSVUrl)
       .then(response => response.text())
-      .then(csvText => {
-        const rows = csvText.trim().split('\n').slice(1); // skip header
-        requestsTable.innerHTML = '';
-        knownTimestamps.clear();
-
-        rows.reverse().forEach(line => {
-          const [song, name, dedication, timestampRaw] = parseCSVLine(line);
-          if (!song || !timestampRaw) return;
-
-          const formattedTimestamp = formatTimestamp(timestampRaw);
-          const key = timestampRaw;
-
-          if (knownTimestamps.has(key)) return;
-          knownTimestamps.add(key);
-
-          const tr = createTableRow(song, name, dedication, formattedTimestamp, timestampRaw);
-          requestsTable.appendChild(tr);
+      .then(csv => {
+        const rows = csv.trim().split("\n").slice(1); // Skip header
+        rows.reverse().forEach(row => {
+          const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '')); // CSV-safe split
+          const tr = createRow(cols);
+          if (tr) requestsTable.insertBefore(tr, requestsTable.firstChild);
         });
-
         updateTotal();
       })
-      .catch(error => {
-        console.error('Fetch error:', error);
+      .catch(err => {
+        console.error("Error loading CSV:", err);
       });
   }
 
@@ -257,14 +241,13 @@
       playedTable.innerHTML = "";
       unknownTable.innerHTML = "";
       knownTimestamps.clear();
-      fetchData();
+      fetchCSVData();
     }
   }
 
-  fetchData();
-  setInterval(fetchData, 10000); // refresh every 10 seconds
+  fetchCSVData();
+  setInterval(fetchCSVData, 10000); // Fetch new rows every 10s
 </script>
-
 </body>
 </html>
 
