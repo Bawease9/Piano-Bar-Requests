@@ -1,76 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin - Song Requests</title>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f9f9f9;
       padding: 20px;
     }
-
-    h2 {
-      margin-top: 40px;
+    h1 {
+      text-align: center;
     }
-
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding: 0 5%;
+    }
+    .total-requests {
+      font-weight: bold;
+      font-size: 1.2em;
+    }
     table {
-      width: 100%;
+      margin: auto;
       border-collapse: collapse;
-      margin-top: 10px;
+      width: 90%;
+      margin-bottom: 40px;
     }
-
     th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
+      padding: 12px;
       text-align: left;
     }
-
     th {
       background-color: #111;
-      color: #fff;
-    }
-
-    button {
-      padding: 5px 10px;
-      background-color: #007bff;
       color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    tr:nth-child(odd) {
+      background-color: #fff;
+    }
+    td.song-title {
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+    button {
+      padding: 6px 12px;
+      margin-right: 5px;
       border: none;
       border-radius: 5px;
+      background-color: #007bff;
+      color: white;
       cursor: pointer;
-      margin: 2px;
     }
-
     button:hover {
       background-color: #0056b3;
     }
-
     .section-title {
-      margin-top: 30px;
-    }
-
-    .checkmark {
-      color: green;
-      font-size: 20px;
-    }
-
-    .undo-button {
-      background-color: #999;
-    }
-
-    #reset-btn {
-      margin-top: 10px;
-      float: right;
-      background-color: red;
+      text-align: center;
+      margin-top: 60px;
     }
   </style>
 </head>
 <body>
+  <h1>🎶 Admin - Song Requests 🎶</h1>
+  <div class="top-bar">
+    <div class="total-requests" id="totalCount">Total Requests: 0</div>
+    <button onclick="resetAll()">Reset All</button>
+  </div>
 
-  <h1>🎹 Song Requests Admin</h1>
-  <div>Total Requests: <span id="request-count">0</span></div>
-  <button id="reset-btn">Reset All</button>
-
-  <table id="active-requests">
+  <table id="requestsTable">
     <thead>
       <tr>
         <th>Song/Artist</th>
@@ -84,7 +87,7 @@
   </table>
 
   <h2 class="section-title">✅ Played Songs</h2>
-  <table id="played-requests">
+  <table id="playedTable">
     <thead>
       <tr>
         <th>Song/Artist</th>
@@ -97,8 +100,8 @@
     <tbody></tbody>
   </table>
 
-  <h2 class="section-title">🧠 Songs We Don't Know</h2>
-  <table id="unknown-requests">
+  <h2 class="section-title">🤷‍♂️ Songs We Don't Know</h2>
+  <table id="unknownTable">
     <thead>
       <tr>
         <th>Song/Artist</th>
@@ -111,130 +114,156 @@
     <tbody></tbody>
   </table>
 
-  <script>
-    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv";
+<script>
+  const csvURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
 
-    const activeTbody = document.querySelector("#active-requests tbody");
-    const playedTbody = document.querySelector("#played-requests tbody");
-    const unknownTbody = document.querySelector("#unknown-requests tbody");
-    const requestCountSpan = document.getElementById("request-count");
+  const requestsTable = document.querySelector("#requestsTable tbody");
+  const playedTable = document.querySelector("#playedTable tbody");
+  const unknownTable = document.querySelector("#unknownTable tbody");
+  const totalCount = document.getElementById("totalCount");
 
-    let requests = [];
+  let knownTimestamps = new Set();
 
-    function loadRequests() {
-      fetch(sheetURL)
-        .then(res => res.text())
-        .then(data => {
-          const rows = data.split("\n").slice(1); // Skip header row
-          requests = rows.map(row => {
-            const cols = row.split(",");
+  function formatTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    if (isNaN(date)) return timestamp;
 
-            // Order: Song/Artist, Your Name, Dedication, Timestamp
-            const [song, name, dedication, timestampRaw] = cols;
+    const options = { hour: 'numeric', minute: 'numeric', hour12: true };
+    const time = date.toLocaleTimeString(undefined, options).toLowerCase();
+    const dateStr = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+    return `${time} ${dateStr}`;
+  }
 
-            return {
-              song: song || "",
-              name: name || "",
-              dedication: dedication || "",
-              timestamp: timestampRaw || "",
-              status: "active"
-            };
-          });
+  function parseCSVLine(line) {
+    const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(val => val.replace(/^"|"$/g, "").trim());
+    return values;
+  }
 
-          renderRequests();
-        });
-    }
+  function createTableRow(song, name, dedication, formattedTimestamp, rawTimestamp) {
+    const tr = document.createElement("tr");
 
-    function renderRequests() {
-      activeTbody.innerHTML = "";
-      playedTbody.innerHTML = "";
-      unknownTbody.innerHTML = "";
-
-      const played = JSON.parse(localStorage.getItem("played") || "[]");
-      const unknown = JSON.parse(localStorage.getItem("unknown") || "[]");
-
-      requestCountSpan.textContent = requests.length;
-
-      requests.forEach((req, index) => {
-        let row = createRow(req, index);
-
-        if (played.includes(index)) {
-          req.status = "played";
-          playedTbody.appendChild(row);
-        } else if (unknown.includes(index)) {
-          req.status = "unknown";
-          unknownTbody.appendChild(row);
-        } else {
-          req.status = "active";
-          activeTbody.appendChild(row);
-        }
-      });
-    }
-
-function createRow(req, index) {
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>${req.song}</td>
-    <td>${req.name}</td>
-    <td>${req.dedication}</td>
-    <td>${formatTimestamp(req.timestamp)}</td>
-    <td>
-      ${req.status === "active" ? `
-        <button onclick="markAsPlayed(${index})">Mark as Played</button>
-        <button onclick="markAsUnknown(${index})">Don't Know</button>
-      ` : `
-        <button class="undo-button" onclick="undo(${index})">Undo</button>
-      `}
-    </td>
-  `;
-  return tr;
-}
-
-function formatTimestamp(isoString) {
-  const date = new Date(isoString);
-  return date.toLocaleString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    month: "numeric",
-    day: "numeric",
-    year: "numeric"
-  }).toLowerCase();
-}
-
-
-    function markAsPlayed(index) {
-      const played = JSON.parse(localStorage.getItem("played") || "[]");
-      if (!played.includes(index)) played.push(index);
-      localStorage.setItem("played", JSON.stringify(played));
-      renderRequests();
-    }
-
-    function markAsUnknown(index) {
-      const unknown = JSON.parse(localStorage.getItem("unknown") || "[]");
-      if (!unknown.includes(index)) unknown.push(index);
-      localStorage.setItem("unknown", JSON.stringify(unknown));
-      renderRequests();
-    }
-
-    function undo(index) {
-      let played = JSON.parse(localStorage.getItem("played") || "[]");
-      let unknown = JSON.parse(localStorage.getItem("unknown") || "[]");
-      played = played.filter(i => i !== index);
-      unknown = unknown.filter(i => i !== index);
-      localStorage.setItem("played", JSON.stringify(played));
-      localStorage.setItem("unknown", JSON.stringify(unknown));
-      renderRequests();
-    }
-
-    document.getElementById("reset-btn").addEventListener("click", () => {
-      localStorage.removeItem("played");
-      localStorage.removeItem("unknown");
-      renderRequests();
+    [song, name, dedication, formattedTimestamp].forEach((val, idx) => {
+      const td = document.createElement("td");
+      td.textContent = val;
+      if (idx === 0) td.classList.add("song-title");
+      tr.appendChild(td);
     });
 
-    loadRequests();
-  </script>
+    const actionTd = document.createElement("td");
+
+    const playedBtn = document.createElement("button");
+    playedBtn.textContent = "Mark as Played";
+    playedBtn.onclick = () => {
+      tr.remove();
+      addUndoButton(tr, requestsTable);
+      playedTable.appendChild(tr);
+      updateTotal();
+    };
+
+    const unknownBtn = document.createElement("button");
+    unknownBtn.textContent = "Don't Know";
+    unknownBtn.onclick = () => {
+      tr.remove();
+      addUndoButton(tr, requestsTable);
+      unknownTable.appendChild(tr);
+      updateTotal();
+    };
+
+    actionTd.appendChild(playedBtn);
+    actionTd.appendChild(unknownBtn);
+    tr.appendChild(actionTd);
+
+    return tr;
+  }
+
+  function addUndoButton(tr, destinationTable) {
+    const actionCell = tr.querySelector("td:last-child");
+    actionCell.innerHTML = "";
+
+    const undoBtn = document.createElement("button");
+    undoBtn.textContent = "Undo";
+    undoBtn.onclick = () => {
+      tr.remove();
+      restoreActionButtons(tr);
+      destinationTable.insertBefore(tr, destinationTable.firstChild);
+      updateTotal();
+    };
+
+    actionCell.appendChild(undoBtn);
+  }
+
+  function restoreActionButtons(tr) {
+    const actionCell = tr.querySelector("td:last-child");
+    actionCell.innerHTML = "";
+
+    const playedBtn = document.createElement("button");
+    playedBtn.textContent = "Mark as Played";
+    playedBtn.onclick = () => {
+      tr.remove();
+      addUndoButton(tr, requestsTable);
+      playedTable.appendChild(tr);
+      updateTotal();
+    };
+
+    const unknownBtn = document.createElement("button");
+    unknownBtn.textContent = "Don't Know";
+    unknownBtn.onclick = () => {
+      tr.remove();
+      addUndoButton(tr, requestsTable);
+      unknownTable.appendChild(tr);
+      updateTotal();
+    };
+
+    actionCell.appendChild(playedBtn);
+    actionCell.appendChild(unknownBtn);
+  }
+
+  function updateTotal() {
+    totalCount.textContent = `Total Requests: ${requestsTable.children.length}`;
+  }
+
+  function fetchData() {
+    fetch(csvURL)
+      .then(response => response.text())
+      .then(csvText => {
+        const rows = csvText.trim().split('\n').slice(1); // skip header
+        requestsTable.innerHTML = '';
+        knownTimestamps.clear();
+
+        rows.reverse().forEach(line => {
+          const [song, name, dedication, timestampRaw] = parseCSVLine(line);
+          if (!song || !timestampRaw) return;
+
+          const formattedTimestamp = formatTimestamp(timestampRaw);
+          const key = timestampRaw;
+
+          if (knownTimestamps.has(key)) return;
+          knownTimestamps.add(key);
+
+          const tr = createTableRow(song, name, dedication, formattedTimestamp, timestampRaw);
+          requestsTable.appendChild(tr);
+        });
+
+        updateTotal();
+      })
+      .catch(error => {
+        console.error('Fetch error:', error);
+      });
+  }
+
+  function resetAll() {
+    if (confirm("Are you sure you want to reset all lists?")) {
+      requestsTable.innerHTML = "";
+      playedTable.innerHTML = "";
+      unknownTable.innerHTML = "";
+      knownTimestamps.clear();
+      fetchData();
+    }
+  }
+
+  fetchData();
+  setInterval(fetchData, 10000); // refresh every 10 seconds
+</script>
 
 </body>
 </html>
