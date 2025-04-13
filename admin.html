@@ -4,59 +4,54 @@
   <title>Admin - Song Requests</title>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #121212;
-      color: white;
-      margin: 0;
-      padding: 1rem;
+      font-family: Arial, sans-serif;
       text-align: center;
+      background-color: #111;
+      color: #f1f1f1;
     }
 
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 20px 8%;
+      padding: 30px 8%;
     }
 
     h2 {
       margin: 0;
-      color: #00ffcc;
+      font-size: 2em;
     }
 
     #totalRequests {
       font-size: 18px;
-      margin: 10px 0 20px;
-      color: #ccc;
+      margin-bottom: 10px;
     }
 
     .reset-btn {
       padding: 10px 16px;
-      border-radius: 8px;
+      border-radius: 10px;
       border: none;
-      background-color: #e91e63;
+      background-color: #e74c3c;
       color: white;
       font-weight: bold;
       cursor: pointer;
     }
 
     table {
+      margin: 0 auto;
+      border-collapse: collapse;
       width: 90%;
-      margin: 0 auto 40px;
-      border-collapse: separate;
-      border-spacing: 0 10px;
+      margin-bottom: 40px;
     }
 
     th, td {
+      border: 1px solid #333;
       padding: 12px 15px;
-      background-color: #1e1e1e;
-      border: none;
-      border-radius: 8px;
     }
 
     th {
-      background-color: #00bcd4;
-      color: black;
+      background-color: #333;
+      color: #f1f1f1;
     }
 
     td:first-child {
@@ -65,25 +60,25 @@
     }
 
     .section-title {
-      font-size: 1.4em;
+      font-size: 1.3em;
       font-weight: bold;
       margin: 30px 0 10px;
-      color: #00bcd4;
+      color: #ccc;
     }
 
     .button {
       margin: 5px;
-      padding: 8px 12px;
-      font-size: 0.9em;
+      padding: 6px 12px;
       font-weight: bold;
-      border-radius: 5px;
+      border-radius: 6px;
       border: none;
+      color: white;
       cursor: pointer;
     }
 
-    .played-btn { background-color: #4caf50; color: white; }
-    .unknown-btn { background-color: #ffc107; color: black; }
-    .undo-btn { background-color: #2196f3; color: white; }
+    .played-btn { background-color: #28a745; }
+    .unknown-btn { background-color: #007bff; }
+    .undo-btn { background-color: #f39c12; }
   </style>
 </head>
 <body>
@@ -99,7 +94,7 @@
         <th>Song/Artist</th>
         <th>Your Name</th>
         <th>Dedication</th>
-        <th>Timestamp</th>
+        <th>Submitted</th>
         <th>Action</th>
       </tr>
     </thead>
@@ -138,22 +133,32 @@
     const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDNwOUT65Dwpzdmxn-3jEWzQV4X7HldEe-X2yB9iwgFVDXUSyLVQoTjukcSf06w-W7uhjaCIrmWxH5/pub?output=csv';
     const appendedRows = new Set();
 
-    function formatTimestamp(ts) {
-      if (!ts) return '—';
-      if (ts.includes('T')) {
-        const date = new Date(ts);
-        const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-        const dateStr = date.toLocaleDateString();
-        return `${time} ${dateStr}`;
-      }
-      return ts;
+    function timeAgo(date) {
+      const now = new Date();
+      const diff = Math.floor((now - date) / 1000); // in seconds
+
+      if (diff < 60) return `${diff}s ago`;
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      return `${Math.floor(diff / 86400)}d ago`;
     }
 
     function createRow(cells, location = 'main') {
       const tr = document.createElement('tr');
-      cells.forEach((text, i) => {
+
+      const submittedTime = new Date(cells[3]);
+      const submittedText = isNaN(submittedTime.getTime()) ? '—' : timeAgo(submittedTime);
+
+      const visibleCells = [
+        cells[0], // song
+        cells[1], // name
+        cells[2], // dedication
+        submittedText // how long ago
+      ];
+
+      visibleCells.forEach((text, i) => {
         const td = document.createElement('td');
-        td.textContent = i === 3 ? formatTimestamp(text) : (text || '—');
+        td.textContent = text || '—';
         if (i === 0) {
           td.style.fontWeight = 'bold';
           td.style.fontSize = '1.2em';
@@ -185,15 +190,15 @@
       }
 
       tr.appendChild(actionCell);
+      tr.dataset.timestamp = cells[3]; // keep original timestamp for sorting
       return tr;
     }
 
     function moveRow(row, destination) {
-      const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) + ' ' + new Date().toLocaleDateString();
-      row.cells[3].textContent = timestamp;
       row.removeChild(row.lastChild);
       const cells = Array.from(row.cells).map(cell => cell.textContent);
-      const newRow = createRow(cells, destination);
+      const now = new Date().toISOString();
+      const newRow = createRow([...cells.slice(0, 3), now], destination);
 
       if (destination === 'played') {
         document.querySelector('#playedTable tbody').appendChild(newRow);
@@ -218,16 +223,46 @@
         .then(response => response.text())
         .then(csv => {
           const rows = csv.trim().split('\n').slice(1);
+          const currentKeys = new Set();
+          const parsedRows = [];
+
           rows.forEach(line => {
-            const [song, name, dedication, timestamp, tip] = line.split(',');
-            const key = `${song}|${name}|${dedication}|${timestamp}`;
-            if (!appendedRows.has(key)) {
-              appendedRows.add(key);
-              const tr = createRow([song, name, dedication, timestamp]);
-              document.querySelector('#requestsTable tbody').appendChild(tr);
-              document.getElementById('totalRequests').textContent = `Total Requests: ${appendedRows.size}`;
+            const [song, name, dedication, timestamp] = line.split(',');
+            const key = `${song}|${name}|${dedication}`;
+            currentKeys.add(key);
+            parsedRows.push({ key, data: [song, name, dedication, timestamp] });
+          });
+
+          parsedRows
+            .sort((a, b) => new Date(b.data[3]) - new Date(a.data[3])) // sort newest first
+            .forEach(({ key, data }) => {
+              if (!appendedRows.has(key)) {
+                appendedRows.add(key);
+                const tr = createRow(data);
+                document.querySelector('#requestsTable tbody').appendChild(tr);
+              }
+            });
+
+          appendedRows.forEach(key => {
+            if (!currentKeys.has(key)) {
+              appendedRows.delete(key);
+              const rows = document.querySelectorAll('#requestsTable tbody tr');
+              rows.forEach(row => {
+                const rowKey = `${row.cells[0].textContent}|${row.cells[1].textContent}|${row.cells[2].textContent}`;
+                if (rowKey === key) {
+                  row.remove();
+                }
+              });
             }
           });
+
+          // Re-sort visible rows just in case
+          const tbody = document.querySelector('#requestsTable tbody');
+          const rowsArray = Array.from(tbody.querySelectorAll('tr'));
+          rowsArray.sort((a, b) => new Date(b.dataset.timestamp) - new Date(a.dataset.timestamp));
+          rowsArray.forEach(row => tbody.appendChild(row));
+
+          document.getElementById('totalRequests').textContent = `Total Requests: ${appendedRows.size}`;
         });
     }
 
