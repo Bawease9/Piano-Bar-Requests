@@ -124,23 +124,24 @@
   const playedTable = document.querySelector("#playedTable tbody");
   const unknownTable = document.querySelector("#unknownTable tbody");
   const totalCount = document.getElementById("totalCount");
-  const knownTimestamps = new Set();
+  const seenRequests = new Set(); // prevent duplicate entries
 
- function formatTimestamp(isoString) {
-  const date = new Date(isoString);
-  if (isNaN(date.getTime())) return "Invalid Date"; // Fallback for bad data
+  function formatTimestamp(isoString) {
+    if (!isoString) return "—";
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "—"; // gracefully handle bad data
 
-  const options = { hour: 'numeric', minute: 'numeric', hour12: true };
-  const time = date.toLocaleTimeString(undefined, options).toLowerCase();
-  const dateStr = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-  return `${time} ${dateStr}`;
-}
-
+    const options = { hour: 'numeric', minute: 'numeric', hour12: true };
+    const time = date.toLocaleTimeString(undefined, options).toLowerCase();
+    const dateStr = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+    return `${time} ${dateStr}`;
+  }
 
   function createRow(data) {
     const [song, name, dedication, timestampRaw] = data;
-    if (!timestampRaw || knownTimestamps.has(timestampRaw)) return null;
-    knownTimestamps.add(timestampRaw);
+    const uniqueKey = `${song}|${name}|${dedication}|${timestampRaw}`;
+    if (seenRequests.has(uniqueKey)) return null;
+    seenRequests.add(uniqueKey);
 
     const tr = document.createElement("tr");
     const values = [song, name, dedication, formatTimestamp(timestampRaw)];
@@ -245,7 +246,7 @@
       requestsTable.innerHTML = "";
       playedTable.innerHTML = "";
       unknownTable.innerHTML = "";
-      knownTimestamps.clear();
+      seenRequests.clear();
       fetchCSVData();
     }
   }
@@ -253,6 +254,7 @@
   fetchCSVData();
   setInterval(fetchCSVData, 10000); // Auto-fetch every 10 seconds
 </script>
+
 </body>
 </html>
 
