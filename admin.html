@@ -188,14 +188,13 @@
       const cells = Array.from(row.cells).map(cell => cell.textContent);
       const newRow = createRow(cells, destination);
 
-      if (destination === 'played') {
-        document.querySelector('#playedTable tbody').appendChild(newRow);
-      } else if (destination === 'unknown') {
-        document.querySelector('#unknownTable tbody').appendChild(newRow);
-      } else {
-        document.querySelector('#requestsTable tbody').appendChild(newRow);
-      }
+      const tableBody = {
+        'played': document.querySelector('#playedTable tbody'),
+        'unknown': document.querySelector('#unknownTable tbody'),
+        'main': document.querySelector('#requestsTable tbody')
+      }[destination];
 
+      tableBody.insertBefore(newRow, tableBody.firstChild);
       row.remove();
     }
 
@@ -220,23 +219,19 @@
           rows.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
           const tbody = document.querySelector('#requestsTable tbody');
-          const currentKeys = new Set();
-
-          tbody.innerHTML = '';
+          let newCount = 0;
 
           rows.forEach(row => {
             const key = `${row.song}|${row.name}|${row.dedication}|${row.timestamp}`;
-            currentKeys.add(key);
-
             if (!appendedRows.has(key)) {
               appendedRows.add(key);
+              const newRow = createRow([row.song, row.name, row.dedication, row.timestamp], 'main');
+              tbody.insertBefore(newRow, tbody.firstChild);
+              newCount++;
             }
-
-            const tr = createRow([row.song, row.name, row.dedication, row.timestamp]);
-            tbody.appendChild(tr);
           });
 
-          document.getElementById('totalRequests').textContent = `Total Requests: ${currentKeys.size}`;
+          document.getElementById('totalRequests').textContent = `Total Requests: ${appendedRows.size}`;
         });
     }
 
