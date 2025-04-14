@@ -32,16 +32,21 @@
       border-radius: 8px;
       border: 1px solid #ccc;
     }
-    .button {
-      width: auto;
-      padding: 14px 28px;
-      margin-top: 15px;
-      font-size: 16px;
+    .submit-button {
+      width: 100%;
+      padding: 18px 0;
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
       border: none;
-      border-radius: 8px;
+      border-radius: 999px;
       cursor: pointer;
-      background: #111;
+      background-color: #000;
       color: white;
+      transition: background 0.3s ease;
+    }
+    .submit-button:hover {
+      background-color: #333;
     }
     h1 {
       font-size: 2em;
@@ -59,34 +64,35 @@
     <h1><span class="emoji">🎶</span> Make A Request <span class="emoji">🎶</span></h1>
 
     <form id="requestForm">
-  <input type="text" name="song" placeholder="Song/Artist" required />
-  <input type="text" name="name" placeholder="Your Name" />
-  <input type="text" name="dedication" placeholder="Dedication (optional)" />
-  <button type="submit">Submit</button>
-</form>
+      <input type="text" name="song" placeholder="Song/Artist" required />
+      <input type="text" name="name" placeholder="Your Name" />
+      <input type="text" name="dedication" placeholder="Dedication (optional)" />
+      <button type="submit" class="submit-button">Submit</button>
+    </form>
+  </div>
 
-<script>
-  document.getElementById("requestForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const data = Object.fromEntries(formData.entries());
+  <script>
+    document.getElementById("requestForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData.entries());
 
-    fetch("https://hook.us2.make.com/wh9j7c3uvdmoohvi4vzlpcg2wuuwht77", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    })
-    .then(() => {
-      window.location.href = "thankyou.html";
-    })
-    .catch((error) => {
-      alert("Something went wrong!");
-      console.error(error);
+      fetch("https://hook.us2.make.com/wh9j7c3uvdmoohvi4vzlpcg2wuuwht77", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+      .then(() => {
+        window.location.href = "thankyou.html";
+      })
+      .catch((error) => {
+        alert("Something went wrong!");
+        console.error(error);
+      });
     });
-  });
-</script>
-
+  </script>
 </body>
 </html>
+
