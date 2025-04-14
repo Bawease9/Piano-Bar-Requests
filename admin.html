@@ -136,7 +136,7 @@
     function formatTimestamp(ts) {
       if (!ts) return '—';
       const date = new Date(ts);
-      if (isNaN(date)) return ts; // fallback: show raw string if parsing fails
+      if (isNaN(date)) return ts;
       const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
       const dateStr = date.toLocaleDateString();
       return `${time} ${dateStr}`;
@@ -207,7 +207,8 @@
     }
 
     function fetchAndAppendNewRows() {
-      fetch(sheetURL)
+      const urlWithBypass = sheetURL + '&nocache=' + Date.now();
+      fetch(urlWithBypass)
         .then(response => response.text())
         .then(csv => {
           const lines = csv.trim().split('\n');
@@ -218,21 +219,29 @@
 
           rows.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
+          const tbody = document.querySelector('#requestsTable tbody');
+          const currentKeys = new Set();
+
+          tbody.innerHTML = '';
+
           rows.forEach(row => {
             const key = `${row.song}|${row.name}|${row.dedication}|${row.timestamp}`;
+            currentKeys.add(key);
+
             if (!appendedRows.has(key)) {
               appendedRows.add(key);
-              const tr = createRow([row.song, row.name, row.dedication, row.timestamp]);
-              document.querySelector('#requestsTable tbody').appendChild(tr);
             }
+
+            const tr = createRow([row.song, row.name, row.dedication, row.timestamp]);
+            tbody.appendChild(tr);
           });
 
-          document.getElementById('totalRequests').textContent = `Total Requests: ${appendedRows.size}`;
+          document.getElementById('totalRequests').textContent = `Total Requests: ${currentKeys.size}`;
         });
     }
 
     fetchAndAppendNewRows();
-    setInterval(fetchAndAppendNewRows, 10000);
+    setInterval(fetchAndAppendNewRows, 5000); // refresh every 5 seconds
   </script>
 </body>
 </html>
