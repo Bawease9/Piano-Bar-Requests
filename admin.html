@@ -180,23 +180,24 @@
       return tr;
     }
 
-    function moveRow(row, destination) {
-      const timestamp = new Date().toISOString();
-      row.cells[3].textContent = formatTimestamp(timestamp);
-      row.removeChild(row.lastChild);
+ function moveRow(row, destination) {
+  // Extract cell text content without changing the timestamp
+  const cells = Array.from(row.cells).slice(0, 4).map(cell => cell.textContent);
 
-      const cells = Array.from(row.cells).map(cell => cell.textContent);
-      const newRow = createRow(cells, destination);
+  // Create a new row with the same data and updated location
+  const newRow = createRow(cells, destination);
 
-      const tableBody = {
-        'played': document.querySelector('#playedTable tbody'),
-        'unknown': document.querySelector('#unknownTable tbody'),
-        'main': document.querySelector('#requestsTable tbody')
-      }[destination];
+  if (destination === 'played') {
+    document.querySelector('#playedTable tbody').appendChild(newRow);
+  } else if (destination === 'unknown') {
+    document.querySelector('#unknownTable tbody').appendChild(newRow);
+  } else {
+    document.querySelector('#requestsTable tbody').appendChild(newRow);
+  }
 
-      tableBody.insertBefore(newRow, tableBody.firstChild);
-      row.remove();
-    }
+  row.remove();
+}
+
 
     function resetTables() {
       document.querySelector('#requestsTable tbody').innerHTML = '';
